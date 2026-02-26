@@ -5,6 +5,10 @@ import {
   insertEventSchema, events,
   insertGallerySchema, galleryImages,
   insertRankerSchema, rankers,
+  insertAcademicSchema, academics,
+  insertStudentLifeSchema, studentLife,
+  insertResultSchema, results,
+  insertAdmissionSchema, admissions,
   users
 } from './schema';
 
@@ -176,6 +180,100 @@ export const api = {
     delete: {
       method: 'DELETE' as const,
       path: '/api/rankers/:id' as const,
+      responses: { 204: z.void(), 404: errorSchemas.notFound },
+    }
+  },
+  academics: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/academics' as const,
+      input: z.object({ status: z.string().optional(), category: z.string().optional() }).optional(),
+      responses: { 200: z.array(z.custom<typeof academics.$inferSelect>()) },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/academics' as const,
+      input: insertAcademicSchema,
+      responses: { 201: z.custom<typeof academics.$inferSelect>(), 401: errorSchemas.unauthorized },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/academics/:id' as const,
+      input: insertAcademicSchema.partial(),
+      responses: { 200: z.custom<typeof academics.$inferSelect>(), 404: errorSchemas.notFound },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/academics/:id' as const,
+      responses: { 204: z.void(), 404: errorSchemas.notFound },
+    }
+  },
+  studentLife: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/student-life' as const,
+      input: z.object({ status: z.string().optional() }).optional(),
+      responses: { 200: z.array(z.custom<typeof studentLife.$inferSelect>()) },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/student-life' as const,
+      input: insertStudentLifeSchema,
+      responses: { 201: z.custom<typeof studentLife.$inferSelect>(), 401: errorSchemas.unauthorized },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/student-life/:id' as const,
+      input: insertStudentLifeSchema.partial(),
+      responses: { 200: z.custom<typeof studentLife.$inferSelect>(), 404: errorSchemas.notFound },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/student-life/:id' as const,
+      responses: { 204: z.void(), 404: errorSchemas.notFound },
+    }
+  },
+  results: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/results' as const,
+      input: z.object({ rollNo: z.string().optional() }).optional(),
+      responses: { 200: z.array(z.custom<typeof results.$inferSelect>()) },
+    },
+    bulkCreate: {
+      method: 'POST' as const,
+      path: '/api/results/bulk' as const,
+      input: z.array(insertResultSchema),
+      responses: { 201: z.object({ count: z.number() }), 401: errorSchemas.unauthorized },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/results/:id' as const,
+      responses: { 204: z.void(), 404: errorSchemas.notFound },
+    }
+  },
+  admissions: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/admissions' as const,
+      input: z.object({ status: z.string().optional() }).optional(),
+      responses: { 200: z.array(z.custom<typeof admissions.$inferSelect>()) },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/admissions' as const,
+      input: insertAdmissionSchema,
+      responses: { 201: z.custom<typeof admissions.$inferSelect>(), 401: errorSchemas.unauthorized },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/admissions/:id' as const,
+      input: insertAdmissionSchema.partial(),
+      responses: { 200: z.custom<typeof admissions.$inferSelect>(), 404: errorSchemas.notFound },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/admissions/:id' as const,
       responses: { 204: z.void(), 404: errorSchemas.notFound },
     }
   }

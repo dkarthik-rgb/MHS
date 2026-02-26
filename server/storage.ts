@@ -2,12 +2,17 @@ import { db } from "./db";
 import { eq } from "drizzle-orm";
 import {
   users, announcements, facultyProfiles, events, galleryImages, rankers,
+  academics, studentLife, results, admissions,
   type User, type InsertUser,
   type Announcement, type InsertAnnouncement,
   type Faculty, type InsertFaculty,
   type Event, type InsertEvent,
   type GalleryImage, type InsertGalleryImage,
-  type Ranker, type InsertRanker
+  type Ranker, type InsertRanker,
+  type Academic, type InsertAcademic,
+  type StudentLife, type InsertStudentLife,
+  type Result, type InsertResult,
+  type Admission, type InsertAdmission
 } from "@shared/schema";
 
 export interface IStorage {
@@ -50,6 +55,32 @@ export interface IStorage {
   createRanker(data: InsertRanker): Promise<Ranker>;
   updateRanker(id: number, data: Partial<InsertRanker>): Promise<Ranker>;
   deleteRanker(id: number): Promise<void>;
+
+  // Academics
+  getAcademics(status?: string, category?: string): Promise<Academic[]>;
+  getAcademic(id: number): Promise<Academic | undefined>;
+  createAcademic(data: InsertAcademic): Promise<Academic>;
+  updateAcademic(id: number, data: Partial<InsertAcademic>): Promise<Academic>;
+  deleteAcademic(id: number): Promise<void>;
+
+  // Student Life
+  getStudentLife(status?: string): Promise<StudentLife[]>;
+  getStudentLifeById(id: number): Promise<StudentLife | undefined>;
+  createStudentLife(data: InsertStudentLife): Promise<StudentLife>;
+  updateStudentLife(id: number, data: Partial<InsertStudentLife>): Promise<StudentLife>;
+  deleteStudentLife(id: number): Promise<void>;
+
+  // Results
+  getResults(rollNo?: string): Promise<Result[]>;
+  createResults(data: InsertResult[]): Promise<void>;
+  deleteResult(id: number): Promise<void>;
+
+  // Admissions
+  getAdmissions(status?: string): Promise<Admission[]>;
+  getAdmission(id: number): Promise<Admission | undefined>;
+  createAdmission(data: InsertAdmission): Promise<Admission>;
+  updateAdmission(id: number, data: Partial<InsertAdmission>): Promise<Admission>;
+  deleteAdmission(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -180,6 +211,97 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteRanker(id: number): Promise<void> {
     await db.delete(rankers).where(eq(rankers.id, id));
+  }
+
+  // Academics
+  async getAcademics(status?: string, category?: string): Promise<Academic[]> {
+    let query = db.select().from(academics);
+    if (status && category) {
+      // @ts-ignore
+      query = query.where(eq(academics.status, status)).where(eq(academics.category, category));
+    } else if (status) {
+      // @ts-ignore
+      query = query.where(eq(academics.status, status));
+    } else if (category) {
+      // @ts-ignore
+      query = query.where(eq(academics.category, category));
+    }
+    return await query;
+  }
+  async getAcademic(id: number): Promise<Academic | undefined> {
+    const [item] = await db.select().from(academics).where(eq(academics.id, id));
+    return item;
+  }
+  async createAcademic(data: InsertAcademic): Promise<Academic> {
+    const [item] = await db.insert(academics).values(data).returning();
+    return item;
+  }
+  async updateAcademic(id: number, data: Partial<InsertAcademic>): Promise<Academic> {
+    const [item] = await db.update(academics).set(data).where(eq(academics.id, id)).returning();
+    return item;
+  }
+  async deleteAcademic(id: number): Promise<void> {
+    await db.delete(academics).where(eq(academics.id, id));
+  }
+
+  // Student Life
+  async getStudentLife(status?: string): Promise<StudentLife[]> {
+    if (status) {
+      return await db.select().from(studentLife).where(eq(studentLife.status, status));
+    }
+    return await db.select().from(studentLife);
+  }
+  async getStudentLifeById(id: number): Promise<StudentLife | undefined> {
+    const [item] = await db.select().from(studentLife).where(eq(studentLife.id, id));
+    return item;
+  }
+  async createStudentLife(data: InsertStudentLife): Promise<StudentLife> {
+    const [item] = await db.insert(studentLife).values(data).returning();
+    return item;
+  }
+  async updateStudentLife(id: number, data: Partial<InsertStudentLife>): Promise<StudentLife> {
+    const [item] = await db.update(studentLife).set(data).where(eq(studentLife.id, id)).returning();
+    return item;
+  }
+  async deleteStudentLife(id: number): Promise<void> {
+    await db.delete(studentLife).where(eq(studentLife.id, id));
+  }
+
+  // Results
+  async getResults(rollNo?: string): Promise<Result[]> {
+    if (rollNo) {
+      return await db.select().from(results).where(eq(results.rollNo, rollNo));
+    }
+    return await db.select().from(results);
+  }
+  async createResults(data: InsertResult[]): Promise<void> {
+    await db.insert(results).values(data);
+  }
+  async deleteResult(id: number): Promise<void> {
+    await db.delete(results).where(eq(results.id, id));
+  }
+
+  // Admissions
+  async getAdmissions(status?: string): Promise<Admission[]> {
+    if (status) {
+      return await db.select().from(admissions).where(eq(admissions.status, status));
+    }
+    return await db.select().from(admissions);
+  }
+  async getAdmission(id: number): Promise<Admission | undefined> {
+    const [item] = await db.select().from(admissions).where(eq(admissions.id, id));
+    return item;
+  }
+  async createAdmission(data: InsertAdmission): Promise<Admission> {
+    const [item] = await db.insert(admissions).values(data).returning();
+    return item;
+  }
+  async updateAdmission(id: number, data: Partial<InsertAdmission>): Promise<Admission> {
+    const [item] = await db.update(admissions).set(data).where(eq(admissions.id, id)).returning();
+    return item;
+  }
+  async deleteAdmission(id: number): Promise<void> {
+    await db.delete(admissions).where(eq(admissions.id, id));
   }
 }
 

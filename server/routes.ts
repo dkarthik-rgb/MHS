@@ -227,6 +227,103 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  // Academics
+  app.get(api.academics.list.path, async (req, res) => {
+    const status = req.query.status as string | undefined;
+    const category = req.query.category as string | undefined;
+    const items = await storage.getAcademics(status, category);
+    res.json(items);
+  });
+  app.post(api.academics.create.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.academics.create.input.parse(req.body);
+      const item = await storage.createAcademic(input);
+      res.status(201).json(item);
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.put(api.academics.update.path, requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const input = api.academics.update.input.parse(req.body);
+      const item = await storage.updateAcademic(id, input);
+      res.json(item);
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.delete(api.academics.delete.path, requireAuth, async (req, res) => {
+    await storage.deleteAcademic(Number(req.params.id));
+    res.status(204).end();
+  });
+
+  // Student Life
+  app.get(api.studentLife.list.path, async (req, res) => {
+    const status = req.query.status as string | undefined;
+    const items = await storage.getStudentLife(status);
+    res.json(items);
+  });
+  app.post(api.studentLife.create.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.studentLife.create.input.parse(req.body);
+      const item = await storage.createStudentLife(input);
+      res.status(201).json(item);
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.put(api.studentLife.update.path, requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const input = api.studentLife.update.input.parse(req.body);
+      const item = await storage.updateStudentLife(id, input);
+      res.json(item);
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.delete(api.studentLife.delete.path, requireAuth, async (req, res) => {
+    await storage.deleteStudentLife(Number(req.params.id));
+    res.status(204).end();
+  });
+
+  // Results
+  app.get(api.results.list.path, async (req, res) => {
+    const rollNo = req.query.rollNo as string | undefined;
+    const items = await storage.getResults(rollNo);
+    res.json(items);
+  });
+  app.post(api.results.bulkCreate.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.results.bulkCreate.input.parse(req.body);
+      await storage.createResults(input);
+      res.status(201).json({ count: input.length });
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.delete(api.results.delete.path, requireAuth, async (req, res) => {
+    await storage.deleteResult(Number(req.params.id));
+    res.status(204).end();
+  });
+
+  // Admissions
+  app.get(api.admissions.list.path, async (req, res) => {
+    const status = req.query.status as string | undefined;
+    const items = await storage.getAdmissions(status);
+    res.json(items);
+  });
+  app.post(api.admissions.create.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.admissions.create.input.parse(req.body);
+      const item = await storage.createAdmission(input);
+      res.status(201).json(item);
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.put(api.admissions.update.path, requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const input = api.admissions.update.input.parse(req.body);
+      const item = await storage.updateAdmission(id, input);
+      res.json(item);
+    } catch (err) { handleZodError(res, err); }
+  });
+  app.delete(api.admissions.delete.path, requireAuth, async (req, res) => {
+    await storage.deleteAdmission(Number(req.params.id));
+    res.status(204).end();
+  });
+
   // Seed Admin User
   const existingAdmin = await storage.getUserByEmail('karteekdunga@gmail.com');
   if (!existingAdmin) {
