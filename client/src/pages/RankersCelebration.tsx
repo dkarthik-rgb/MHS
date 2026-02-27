@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import type { Ranker } from "@shared/schema";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
@@ -14,7 +14,8 @@ import {
   type SubjectResult,
   slugifyClass,
 } from "@/lib/results";
-import { Loader2, Trophy, Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
+import { useRankers } from "@/hooks/use-rankers";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=800&q=80";
 
@@ -27,74 +28,50 @@ interface ResultRecord {
   data?: Record<string, any>;
 }
 
-interface DecoratedResult {
+type CelebrationEntry = {
   placementScore: number;
   hallTicket: string;
   studentName: string;
   classLabel: string;
   classSlug: string;
-  summary: ReturnType<typeof summariseSubjects>;
-  photoUrl: string;
   examName: string;
+  photoUrl: string;
+  summary: {
+    totalObtained: number;
+    totalMax: number;
+    percentage: number;
+    grade: string;
+  };
   percentageLabel: string;
-}
+};
 
 const PHOTO_KEYS = ["photoUrl", "photoURL", "imageUrl", "profileImage", "avatarUrl", "avatar", "picture", "studentImage"];
 
 export default function RankersCelebration() {
-  const { data = [], isLoading } = useResults(undefined, { fetchAll: true });
-  const records = (data as ResultRecord[]) ?? [];
+  const {
+    data: resultsPayload = [],
+    isLoading: isResultsLoading,
+  } = useResults(undefined, { fetchAll: true });
+  const { data: rankersPayload = [], isLoading: isRankersLoading } = useRankers("published");
 
-  const decorated = useMemo(() => {
-    return records
-      .map((record) => {
-        const rowPayload = (record.data ?? {}) as Record<string, any>;
-        const normalized = normalizeResultData({
-          data: rowPayload,
-          rawRow: rowPayload,
-          fallbackYear: record.year,
-        });
-        const subjectList = Array.isArray(normalized.subjects)
-          ? (normalized.subjects as SubjectResult[])
-          : inferSubjectsFromRecord(normalized);
-        const summary = summariseSubjects(subjectList);
-        const classLabel = normalized.className || normalized.class || normalized.grade || "Unknown Class";
-        const classSlug = normalized.classSlug || slugifyClass(classLabel);
-        const imageCandidate = PHOTO_KEYS.map((key) => normalized[key] as string | undefined).find(
-          (value) => typeof value === "string" && value.trim().length,
-        );
-        return {
-          placementScore: summary.totalObtained ?? 0,
-          hallTicket: record.rollNo,
-          studentName: record.studentName,
-          classLabel,
-          classSlug,
-          summary,
-          examName: record.examName,
-          percentageLabel: formatPercentage(summary.percentage),
-          photoUrl: imageCandidate || FALLBACK_IMAGE,
-        } as DecoratedResult;
-      })
-      .filter((entry) => entry.placementScore > 0)
-      .sort((a, b) => b.placementScore - a.placementScore);
-  }, [records]);
+  const resultRecords = (resultsPayload as ResultRecord[]) ?? [];
+  const publishedRankers = useMemo(() => {
+    return ((rankersPayload as Ranker[]) ?? [])
+      .filter((ranker) => ranker.status === "published")
+      .sort((a, b) => a.rank - b.rank);
+  }, [rankersPayload]);
 
-  const topThree = decorated.slice(0, 3);
-  const podiumRankers: Ranker[] = decorated.slice(0, 10).map((entry, index) => ({
-    id: index + 1,
-    studentName: entry.studentName,
-    rank: index + 1,
-    year: new Date().getFullYear(),
-    score: entry.summary.totalObtained,
-    hallTicket: entry.hallTicket,
-    className: entry.classLabel,
-    examName: entry.examName,
-    percentage: Number(entry.summary.percentage.toFixed(2)),
-    imageUrl: entry.photoUrl,
-    status: 'published',
-    source: 'manual',
-    manualFields: [],
-  }));
+  const decoratedRankers = useMemo(() => publishedRankers.map(decorateRankerEntry), [publishedRankers]);
+  const decoratedResults = useMemo(() => decorateResultEntries(resultRecords), [resultRecords]);
+
+  const celebrationEntries = decoratedRankers.length ? decoratedRankers : decoratedResults;
+  const topThree = celebrationEntries.slice(0, 3);
+
+  const podiumRankers: Ranker[] = decoratedRankers.length
+    ? publishedRankers.slice(0, 10)
+    : decoratedResults.slice(0, 10).map((entry, index) => resultEntryToRanker(entry, index + 1));
+
+  const isLoading = celebrationEntries.length === 0 && (isRankersLoading || isResultsLoading);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-white">
@@ -164,7 +141,7 @@ export default function RankersCelebration() {
   );
 }
 
-function CelebrationCard({ entry, placement }: { entry: DecoratedResult; placement: 1 | 2 | 3 }) {
+function CelebrationCard({ entry, placement }: { entry: CelebrationEntry; placement: 1 | 2 | 3 }) {
   const placementStyles: Record<1 | 2 | 3, string> = {
     1: "md:order-2 md:scale-110",
     2: "md:order-1 md:-translate-y-6",
@@ -178,7 +155,7 @@ function CelebrationCard({ entry, placement }: { entry: DecoratedResult; placeme
 
   return (
     <div className={`relative ${placementStyles[placement]}`}>
-      <div className="absolute -top-8 left-1/2 -translate-x-1/2">
+      <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-30">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-primary font-black shadow-xl">
           #{placement}
         </div>
@@ -198,7 +175,9 @@ function CelebrationCard({ entry, placement }: { entry: DecoratedResult; placeme
           <div className="text-lg font-semibold text-amber-200">
             {entry.summary.totalObtained} / {entry.summary.totalMax} Marks
           </div>
-          <p className="text-slate-200">{entry.percentageLabel}  Grade {entry.summary.grade}</p>
+          <p className="text-slate-200">
+            {entry.percentageLabel} Grade {entry.summary.grade}
+          </p>
         </div>
         <div className="mt-6 grid grid-cols-2 gap-3 text-left text-xs text-slate-200">
           <div className="rounded-xl bg-white/5 p-3">
@@ -207,7 +186,7 @@ function CelebrationCard({ entry, placement }: { entry: DecoratedResult; placeme
           </div>
           <div className="rounded-xl bg-white/5 p-3">
             <p className="text-[10px] uppercase tracking-widest text-slate-400">Status</p>
-            <p className="text-base font-semibold text-emerald-300">PASS</p>
+            <p className="text-base font-semibold text-emerald-300">{entry.summary.grade === "F" ? "Fail" : "Pass"}</p>
           </div>
         </div>
         <Button
@@ -225,4 +204,98 @@ function CelebrationCard({ entry, placement }: { entry: DecoratedResult; placeme
       )}
     </div>
   );
+}
+
+function decorateRankerEntry(ranker: Ranker): CelebrationEntry {
+  const percentage = typeof ranker.percentage === "number" ? ranker.percentage : null;
+  const totalObtained = ranker.score ?? 0;
+  const totalMax = percentage && percentage > 0 ? Math.round((totalObtained * 100) / percentage) : Math.max(totalObtained, 1);
+  const computedPercentage = percentage ?? (totalMax ? (totalObtained / totalMax) * 100 : 0);
+  const grade = deriveGrade(computedPercentage);
+  const classLabel = ranker.className || "Class";
+  const classSlug = slugifyClass(classLabel);
+  return {
+    placementScore: totalObtained,
+    hallTicket: ranker.hallTicket || `HT-${ranker.rank}`,
+    studentName: ranker.studentName,
+    classLabel,
+    classSlug,
+    examName: ranker.examName || "Board Examination",
+    photoUrl: ranker.imageUrl || FALLBACK_IMAGE,
+    summary: {
+      totalObtained,
+      totalMax,
+      percentage: computedPercentage,
+      grade,
+    },
+    percentageLabel: `${computedPercentage.toFixed(2)}%`,
+  };
+}
+
+function decorateResultEntries(records: ResultRecord[]): CelebrationEntry[] {
+  return records
+    .map((record) => {
+      const rowPayload = (record.data ?? {}) as Record<string, any>;
+      const normalized = normalizeResultData({
+        data: rowPayload,
+        rawRow: rowPayload,
+        fallbackYear: record.year,
+      });
+      const subjectList = Array.isArray(normalized.subjects)
+        ? (normalized.subjects as SubjectResult[])
+        : inferSubjectsFromRecord(normalized);
+      const summary = summariseSubjects(subjectList);
+      const classLabel = normalized.className || normalized.class || normalized.grade || "Unknown Class";
+      const classSlug = normalized.classSlug || slugifyClass(classLabel);
+      const imageCandidate = PHOTO_KEYS.map((key) => normalized[key] as string | undefined).find(
+        (value) => typeof value === "string" && value.trim().length,
+      );
+      return {
+        placementScore: summary.totalObtained ?? 0,
+        hallTicket: record.rollNo,
+        studentName: record.studentName,
+        classLabel,
+        classSlug,
+        examName: record.examName,
+        photoUrl: imageCandidate || FALLBACK_IMAGE,
+        summary: {
+          totalObtained: summary.totalObtained ?? 0,
+          totalMax: summary.totalMax ?? summary.totalObtained ?? 0,
+          percentage: summary.percentage ?? 0,
+          grade: summary.grade,
+        },
+        percentageLabel: formatPercentage(summary.percentage),
+      } as CelebrationEntry;
+    })
+    .filter((entry) => entry.placementScore > 0)
+    .sort((a, b) => b.placementScore - a.placementScore);
+}
+
+function resultEntryToRanker(entry: CelebrationEntry, placement: number): Ranker {
+  return {
+    id: placement,
+    studentName: entry.studentName,
+    rank: placement,
+    year: new Date().getFullYear(),
+    score: entry.summary.totalObtained,
+    hallTicket: entry.hallTicket,
+    className: entry.classLabel,
+    examName: entry.examName,
+    percentage: Number(entry.summary.percentage.toFixed(2)),
+    imageUrl: entry.photoUrl,
+    status: "published",
+    source: "auto",
+    manualFields: [],
+    imagePath: null,
+    syncedAt: null,
+  } as Ranker;
+}
+
+function deriveGrade(percentage: number): string {
+  if (percentage >= 90) return "A+";
+  if (percentage >= 80) return "A";
+  if (percentage >= 70) return "B";
+  if (percentage >= 60) return "C";
+  if (percentage >= 40) return "D";
+  return "F";
 }

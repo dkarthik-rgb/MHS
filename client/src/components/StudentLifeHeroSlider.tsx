@@ -53,7 +53,7 @@ export function StudentLifeHeroSlider({
 
   const heightClass =
     variant === "home"
-      ? "min-h-[640px] h-[92vh] lg:h-[calc(100vh-80px)]"
+      ? "min-h-[720px] h-[calc(100vh-80px)]"
       : "min-h-[480px] h-[70vh]";
 
   return (

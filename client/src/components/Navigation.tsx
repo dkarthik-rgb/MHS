@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { GraduationCap, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { SCHOOL_PHONE_TEL } from "@/lib/branding";
 
 export function Navigation() {
   const [location] = useLocation();
@@ -16,7 +17,7 @@ export function Navigation() {
     { name: "Results", href: "/results" },
     { name: "Rankers", href: "/rankers" },
     { name: "Admissions", href: "/admissions" },
-    { name: "Contact", href: "#contact" },
+    { name: "Contact", href: `tel:${SCHOOL_PHONE_TEL}` },
   ];
 
   return (

@@ -1,4 +1,5 @@
-import { GraduationCap, MapPin, Phone, Mail } from "lucide-react";
+﻿import { GraduationCap, MapPin, Phone, Mail } from "lucide-react";
+import { SCHOOL_PHONE_DISPLAY, SCHOOL_PHONE_TEL, SCHOOL_EMAIL } from "@/lib/branding";
 
 const FOOTER_BG = "/images/footer-campus.jpg";
 
@@ -11,7 +12,7 @@ const QUICK_LINKS = [
   { label: "Rankers", href: "/rankers" },
   { label: "Events", href: "/events" },
   { label: "Faculty", href: "/faculty" },
-  { label: "Contact", href: "/contact" },
+  { label: "Contact", href: `tel:${SCHOOL_PHONE_TEL}` },
 ];
 
 export function Footer() {
@@ -76,20 +77,29 @@ export function Footer() {
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone className="h-5 w-5 text-accent shrink-0" />
-                  <span>+91 98765 43210</span>
+                  <a
+                    href={`tel:${SCHOOL_PHONE_TEL}`}
+                    className="hover:text-accent transition-colors"
+                    aria-label={`Call Montessori High School at ${SCHOOL_PHONE_DISPLAY}`}
+                  >
+                    {SCHOOL_PHONE_DISPLAY}
+                  </a>
                 </li>
                 <li className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-accent shrink-0" />
-                  <span>info@montessoritallapudi.edu</span>
+                  <a href={`mailto:${SCHOOL_EMAIL}`} className="hover:text-accent transition-colors">
+                    {SCHOOL_EMAIL}
+                  </a>
                 </li>
               </ul>
             </div>
           </div>
           <div className="border-t border-white/20 pt-6 text-center text-sm text-white/80">
-            <p>� {new Date().getFullYear()} Montessori High School (SSC). All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Montessori High School (SSC). All rights reserved.</p>
           </div>
         </div>
       </div>
     </footer>
   );
 }
+

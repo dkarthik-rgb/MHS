@@ -11,6 +11,11 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import * as pdfParseModule from "pdf-parse";
+import {
+  uploadLocalFileToFirebaseStorage,
+  deleteStoredAsset,
+  getStorageFileHandle,
+} from "./file-storage";
 import type {
   AcademicDocument,
   AdmissionStatus,
@@ -52,8 +57,39 @@ function cleanupUploadedFiles(
 }
 
 function deleteFileSafe(filePath?: string | null) {
-  if (!filePath) return;
-  fs.promises.unlink(filePath).catch(() => {});
+  deleteStoredAsset(filePath);
+}
+
+async function persistUploadedFile(
+  file: Express.Multer.File,
+  options: { bucketFolder: string; entityId?: number | string },
+) {
+  const fallbackUrl = path
+    .posix.join("/uploads", options.bucketFolder, file.filename)
+    .replace(/\\/g, "/");
+  const folderSegments = [options.bucketFolder];
+  if (typeof options.entityId !== "undefined") {
+    folderSegments.push(String(options.entityId));
+  }
+  try {
+    const uploaded = await uploadLocalFileToFirebaseStorage({
+      localPath: file.path,
+      destinationFolder: folderSegments.join("/"),
+      filename: file.filename,
+      contentType: file.mimetype,
+    });
+    deleteFileSafe(file.path);
+    return {
+      fileUrl: uploaded.publicUrl,
+      filePath: uploaded.pointer,
+    };
+  } catch (error) {
+    console.error("Failed to persist file to Firebase Storage", error);
+  }
+  return {
+    fileUrl: fallbackUrl,
+    filePath: file.path,
+  };
 }
 
 export async function registerRoutes(
@@ -273,6 +309,15 @@ export async function registerRoutes(
         if (sourceType === "url" && !input.imageUrl) {
           return res.status(400).json({ message: "Image URL is required when using URL source." });
         }
+        let uploadedImage:
+          | {
+              fileUrl: string;
+              filePath: string | null;
+            }
+          | null = null;
+        if (sourceType === "upload" && req.file) {
+          uploadedImage = await persistUploadedFile(req.file, { bucketFolder: "faculty", entityId: input.name });
+        }
         const data: InsertFaculty = {
           name: input.name.trim(),
           role: input.role.trim(),
@@ -286,9 +331,9 @@ export async function registerRoutes(
           imageSourceType: sourceType,
           imageUrl:
             sourceType === "upload"
-              ? path.posix.join("/uploads/faculty", (req.file as Express.Multer.File).filename)
+              ? uploadedImage?.fileUrl ?? null
               : input.imageUrl?.trim() || null,
-          imagePath: sourceType === "upload" ? (req.file as Express.Multer.File).path : null,
+          imagePath: sourceType === "upload" ? uploadedImage?.filePath ?? null : null,
         };
         const item = await storage.createFaculty(data);
         res.status(201).json(item);
@@ -329,11 +374,15 @@ export async function registerRoutes(
 
         if (nextSourceType === "upload") {
           if (req.file) {
-            if (existing.imageSourceType === "upload") {
+            const uploadedImage = await persistUploadedFile(req.file, {
+              bucketFolder: "faculty",
+              entityId: id,
+            });
+            if (existing.imageSourceType === "upload" && existing.imagePath) {
               deleteFileSafe(existing.imagePath);
             }
-            nextImageUrl = path.posix.join("/uploads/faculty", req.file.filename);
-            nextImagePath = req.file.path;
+            nextImageUrl = uploadedImage.fileUrl;
+            nextImagePath = uploadedImage.filePath;
           } else if (existing.imageSourceType !== "upload") {
             return res.status(400).json({ message: "Upload an image when switching to uploaded source." });
           }
@@ -403,11 +452,19 @@ export async function registerRoutes(
         const input = api.events.create.input.parse(payload);
         const eventData = buildEventInsertPayload(input);
         const created = await storage.createEvent(eventData);
-        const uploadImages = files.map((file) => ({
-          imageUrl: path.posix.join("/uploads/events", file.filename),
-          filePath: file.path,
-          sourceType: "upload" as const,
-        }));
+        const uploadImages = await Promise.all(
+          files.map(async (file) => {
+            const persisted = await persistUploadedFile(file, {
+              bucketFolder: "events",
+              entityId: created.id,
+            });
+            return {
+              imageUrl: persisted.fileUrl,
+              filePath: persisted.filePath,
+              sourceType: "upload" as const,
+            };
+          }),
+        );
         const remoteImages =
           input.remoteImages?.map((img) => ({
             imageUrl: img.url.trim(),
@@ -452,11 +509,19 @@ export async function registerRoutes(
           const removed = await storage.removeEventImages(toRemove.map((img) => img.id));
           removed.forEach((img) => deleteFileSafe(img.filePath));
         }
-        const uploadImages = files.map((file) => ({
-          imageUrl: path.posix.join("/uploads/events", file.filename),
-          filePath: file.path,
-          sourceType: "upload" as const,
-        }));
+        const uploadImages = await Promise.all(
+          files.map(async (file) => {
+            const persisted = await persistUploadedFile(file, {
+              bucketFolder: "events",
+              entityId: id,
+            });
+            return {
+              imageUrl: persisted.fileUrl,
+              filePath: persisted.filePath,
+              sourceType: "upload" as const,
+            };
+          }),
+        );
         const remoteImages =
           input.remoteImages?.map((img) => ({
             imageUrl: img.url.trim(),
@@ -567,16 +632,19 @@ export async function registerRoutes(
         cleanupUploadedFiles(req.file);
         return res.status(404).json({ message: "Ranker not found" });
       }
-      const publicUrl = `/uploads/rankers/${req.file.filename}`.replace(/\\/g, "/");
+      const persisted = await persistUploadedFile(req.file, {
+        bucketFolder: "rankers",
+        entityId: ranker.hallTicket || id,
+      });
       const manualSet = new Set(ranker.manualFields ?? []);
       manualSet.add("imageUrl");
       manualSet.add("imagePath");
       const updated = await storage.updateRanker(id, {
-        imageUrl: publicUrl,
-        imagePath: req.file.path,
+        imageUrl: persisted.fileUrl,
+        imagePath: persisted.filePath,
         manualFields: Array.from(manualSet),
       });
-      if (ranker.imagePath && ranker.imagePath !== req.file.path) {
+      if (ranker.imagePath && ranker.imagePath !== persisted.filePath) {
         deleteFileSafe(ranker.imagePath);
       }
       res.json(updated);
@@ -650,6 +718,10 @@ export async function registerRoutes(
         }
 
         const extractedText = await extractPdfText(req.file.path);
+        const persistedFile = await persistUploadedFile(req.file, {
+          bucketFolder: "academics",
+          entityId: `${docType}-${academicYear}`,
+        });
 
         const doc = await storage.createAcademicDocument({
           title: title.trim(),
@@ -658,8 +730,8 @@ export async function registerRoutes(
           subject: (req.body.subject as string | undefined)?.trim() || null,
           classLevel: (req.body.classLevel as string | undefined)?.trim() || null,
           status: req.body.status === "published" ? "published" : "draft",
-          fileUrl: path.posix.join("/uploads/academics", req.file.filename),
-          filePath: req.file.path,
+          fileUrl: persistedFile.fileUrl,
+          filePath: persistedFile.filePath,
           fileSize: req.file.size,
           extractedText,
         });
@@ -692,9 +764,7 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Document not found" });
     }
     await storage.deleteAcademicDocument(id);
-    if (doc.filePath && fs.existsSync(doc.filePath)) {
-      fs.unlinkSync(doc.filePath);
-    }
+    deleteFileSafe(doc.filePath);
     res.status(204).end();
   });
 
@@ -711,7 +781,19 @@ export async function registerRoutes(
     if (doc.status !== "published" && !isAdmin) {
       return res.status(404).json({ message: "Document not available" });
     }
-    if (!fs.existsSync(doc.filePath)) {
+    const storageHandle = getStorageFileHandle(doc.filePath);
+    if (storageHandle) {
+      res.setHeader("Content-Type", "application/pdf");
+      const stream = storageHandle.createReadStream();
+      stream.on("error", (error: unknown) => {
+        console.error("Failed to stream academic document", error);
+        if (!res.headersSent) {
+          res.status(500).json({ message: "Unable to load document file" });
+        }
+      });
+      return stream.pipe(res);
+    }
+    if (!doc.filePath || !fs.existsSync(doc.filePath)) {
       return res.status(404).json({ message: "Document file missing" });
     }
     res.setHeader("Content-Type", "application/pdf");
@@ -743,14 +825,22 @@ export async function registerRoutes(
           highlightTag: input.highlightTag?.trim() || null,
           status: input.status ?? "draft",
         });
-        await storage.addStudentLifeImages(
-          entry.id,
-          files.map((file, index) => ({
-            imageUrl: path.posix.join("/uploads/student-life", file.filename),
-            filePath: file.path,
-            orderIndex: index,
-          })),
+        const uploadImages = await Promise.all(
+          files.map(async (file, index) => {
+            const persisted = await persistUploadedFile(file, {
+              bucketFolder: "student-life",
+              entityId: entry.id,
+            });
+            return {
+              imageUrl: persisted.fileUrl,
+              filePath: persisted.filePath,
+              orderIndex: index,
+            };
+          }),
         );
+        if (uploadImages.length) {
+          await storage.addStudentLifeImages(entry.id, uploadImages);
+        }
         const hydrated = await storage.getStudentLifeById(entry.id);
         res.status(201).json(hydrated);
       } catch (err) {
@@ -802,14 +892,22 @@ export async function registerRoutes(
               (max, img) => Math.max(max, typeof img.orderIndex === "number" ? img.orderIndex : max),
               -1,
             ) + 1;
-          await storage.addStudentLifeImages(
-            id,
-            files.map((file, index) => ({
-              imageUrl: path.posix.join("/uploads/student-life", file.filename),
-              filePath: file.path,
-              orderIndex: currentMaxOrder + index,
-            })),
+          const uploadImages = await Promise.all(
+            files.map(async (file, index) => {
+              const persisted = await persistUploadedFile(file, {
+                bucketFolder: "student-life",
+                entityId: id,
+              });
+              return {
+                imageUrl: persisted.fileUrl,
+                filePath: persisted.filePath,
+                orderIndex: currentMaxOrder + index,
+              };
+            }),
           );
+          if (uploadImages.length) {
+            await storage.addStudentLifeImages(id, uploadImages);
+          }
         }
 
         const hydrated = await storage.getStudentLifeById(id);

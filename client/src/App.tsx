@@ -24,9 +24,6 @@ import AdminStudentLife from "@/pages/AdminStudentLife";
 import AdminEvents from "@/pages/AdminEvents";
 import Events from "@/pages/Events";
 
-// Stub pages for additional CRUD sections
-const AdminGalleryStub = () => <AdminDashboard />;
-
 function Router() {
   return (
     <Switch>
@@ -50,7 +47,6 @@ function Router() {
       <Route path="/admin/student-life" component={AdminStudentLife} />
       <Route path="/admin/faculty" component={AdminFaculty} />
       <Route path="/admin/events" component={AdminEvents} />
-      <Route path="/admin/gallery" component={AdminGalleryStub} />
       <Route path="/admin/rankers" component={AdminRankers} />
       <Route path="/admin/results" component={AdminResults} />
       <Route path="/admin/admissions" component={AdminAdmissions} />

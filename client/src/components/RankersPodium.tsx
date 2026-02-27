@@ -1,4 +1,4 @@
-import type { Ranker } from "@shared/schema";
+﻿import type { Ranker } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,12 +39,12 @@ export function RankersPodium({ rankers }: { rankers: Ranker[] }) {
                       <p className="text-sm text-white/70">#{ranker.rank}</p>
                       <p className="text-lg font-semibold">{ranker.studentName}</p>
                     </div>
-                    <Badge className="bg-amber-300/20 text-amber-200">Class {ranker.className || "—"}</Badge>
+                    <Badge className="bg-amber-300/20 text-amber-200">Class {ranker.className || "--"}</Badge>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-200">
                     <div>
                       <p className="text-white/50">Hall Ticket</p>
-                      <p className="font-semibold">{ranker.hallTicket || "—"}</p>
+                      <p className="font-semibold">{ranker.hallTicket || "--"}</p>
                     </div>
                     <div>
                       <p className="text-white/50">Marks</p>
@@ -52,7 +52,7 @@ export function RankersPodium({ rankers }: { rankers: Ranker[] }) {
                     </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-xs text-white/70">
-                    <span>{ranker.percentage ? `${ranker.percentage}%` : "—"}</span>
+                    <span>{ranker.percentage ? `${ranker.percentage}%` : "--"}</span>
                     <a
                       href={`/results?hallTicket=${encodeURIComponent(ranker.hallTicket || "")}&class=${encodeURIComponent(
                         ranker.className || "",
@@ -101,9 +101,9 @@ function PodiumCard({ ranker, placement }: { ranker: Ranker; placement: 1 | 2 | 
         </div>
       </div>
       <div className="mt-6 grid grid-cols-2 gap-4 text-xs text-white/80">
-        <InfoTile label="Hall Ticket" value={ranker.hallTicket || "—"} />
+        <InfoTile label="Hall Ticket" value={ranker.hallTicket || "--"} />
         <InfoTile label="Marks" value={`${ranker.score} Marks`} />
-        <InfoTile label="Percentage" value={ranker.percentage ? `${ranker.percentage}%` : "—"} />
+        <InfoTile label="Percentage" value={ranker.percentage ? `${ranker.percentage}%` : "--"} />
         <InfoTile label="Status" value="Pass" />
       </div>
       <div className="mt-6 flex flex-wrap gap-3">
@@ -132,3 +132,4 @@ function InfoTile({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

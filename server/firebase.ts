@@ -1,9 +1,12 @@
 import fs from "fs";
 import admin from "firebase-admin";
+import "firebase-admin/storage";
+import type { Bucket } from "@google-cloud/storage";
 
 let firebaseApp: admin.app.App | null = null;
 let initAttempted = false;
 let realtimeDb: admin.database.Database | null = null;
+let storageBucket: Bucket | null = null;
 
 function initializeFirebaseApp(): admin.app.App | null {
   if (firebaseApp || initAttempted) {
@@ -37,12 +40,24 @@ function initializeFirebaseApp(): admin.app.App | null {
   return firebaseApp;
 }
 
+export function getFirebaseAppInstance(): admin.app.App | null {
+  return initializeFirebaseApp();
+}
+
 function getRealtimeDb(): admin.database.Database | null {
   if (realtimeDb) return realtimeDb;
   const app = initializeFirebaseApp();
   if (!app) return null;
   realtimeDb = app.database();
   return realtimeDb;
+}
+
+function getStorageBucket(): Bucket | null {
+  if (storageBucket) return storageBucket;
+  const app = initializeFirebaseApp();
+  if (!app) return null;
+  storageBucket = admin.storage().bucket();
+  return storageBucket;
 }
 
 export function getRealtimeDbOrThrow(): admin.database.Database {
@@ -53,6 +68,16 @@ export function getRealtimeDbOrThrow(): admin.database.Database {
     );
   }
   return db;
+}
+
+export function getStorageBucketOrThrow(): Bucket {
+  const bucket = getStorageBucket();
+  if (!bucket) {
+    throw new Error(
+      "Firebase Storage is not configured. Please set FIREBASE_CREDENTIALS_PATH, FIREBASE_DATABASE_URL, and FIREBASE_STORAGE_BUCKET before starting the server.",
+    );
+  }
+  return bucket;
 }
 
 export function generateNumericId(): number {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ export default function Academics() {
   const [calendarFilters, setCalendarFilters] = useState<AcademicDocFilters | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const resourceSectionRef = useRef<HTMLDivElement | null>(null);
 
   const { data: publishedDocsRaw = [] } = useAcademicDocuments({ status: "published" });
   const publishedDocs = (publishedDocsRaw as DocumentRecord[]) ?? [];
@@ -128,17 +129,32 @@ export default function Academics() {
   const activeSyllabusDoc: DocumentRecord | undefined = syllabusDocs[0];
   const activeCalendarDoc: DocumentRecord | undefined = calendarDocs[0];
 
+  const jumpToResources = (subjectName: string) => {
+    setSubject(subjectName);
+    resourceSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Navigation />
       <main className="flex-1 container mx-auto px-4 py-12 space-y-8">
-        <section className="text-center max-w-3xl mx-auto space-y-4">
+        <section className="text-center max-w-3xl mx-auto space-y-5">
           <GraduationCap className="w-16 h-16 mx-auto text-primary" />
-          <h1 className="text-4xl font-bold">Academics Portal</h1>
-          <p className="text-lg text-muted-foreground">
-            Access the latest syllabi and academic calendars published by Montessori High School. Search by academic
-            year, subject, and class to review structured outlines or view PDFs instantly.
-          </p>
+          <div className="space-y-3">
+            <h1 className="text-4xl font-bold">Academics Portal</h1>
+            <p className="text-lg text-muted-foreground">
+              Montessori High School follows a comprehensive SSC-aligned curriculum covering Telugu, Hindi, English, Mathematics,
+              Physical Science, Biological Science, and Social Studies. Each subject is delivered through structured lesson
+              plans, lab work, and project guides curated by our academic council.
+            </p>
+            <p className="text-lg text-muted-foreground">
+              Use the button below to open the syllabus and academic calendar workspace, download PDFs, and review extracted text
+              summaries for quick reference.
+            </p>
+          </div>
+          <Button size="lg" onClick={() => resourceSectionRef.current?.scrollIntoView({ behavior: "smooth" })}>
+            Open Syllabus / Calendar
+          </Button>
         </section>
 
         {noPublishedDocs ? (
@@ -152,7 +168,7 @@ export default function Academics() {
             </CardContent>
           </Card>
         ) : (
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section ref={resourceSectionRef} id="resources" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="shadow-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

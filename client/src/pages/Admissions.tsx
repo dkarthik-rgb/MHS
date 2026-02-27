@@ -20,6 +20,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CLASS_OPTIONS } from "@/lib/results";
 import { Loader2, CheckCircle2, Phone, Mail, MapPin, BookUser } from "lucide-react";
 import { useState } from "react";
+import { SCHOOL_PHONE_DISPLAY, SCHOOL_PHONE_TEL } from "@/lib/branding";
 
 const enquirySchema = z.object({
   studentName: z.string().min(2, "Student name is required"),
@@ -126,7 +127,7 @@ export default function Admissions() {
                   <Input type="date" {...form.register("dob")} />
                 </Field>
                 <Field label="Phone Number" error={form.formState.errors.phone?.message} required>
-                  <Input type="tel" placeholder="+91 98765 43210" {...form.register("phone")} />
+                  <Input type="tel" placeholder="088132 81255" {...form.register("phone")} />
                 </Field>
                 <Field label="Email" error={form.formState.errors.email?.message} required>
                   <Input type="email" placeholder="parent@email.com" {...form.register("email")} />
@@ -167,8 +168,8 @@ export default function Admissions() {
                 <div className="space-y-2">
                   <p className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-primary" />
-                    <a href="tel:+9104022334455" className="font-semibold text-primary">
-                      +91 040 2233 4455
+                    <a href={`tel:${SCHOOL_PHONE_TEL}`} className="font-semibold text-primary">
+                      {SCHOOL_PHONE_DISPLAY}
                     </a>
                   </p>
                   <p className="flex items-center gap-2">
@@ -205,9 +206,9 @@ export default function Admissions() {
                   </p>
                 )}
                 <ul className="text-xs text-slate-500 space-y-1">
-                  <li>• Average response time: &lt; 6 hours</li>
-                  <li>• 100% data encryption - only admissions counsellors can view submissions</li>
-                  <li>• Bring original documents during counselling</li>
+                  <li>- Average response time: &lt; 6 hours</li>
+                  <li>- 100% data encryption - only admissions counsellors can view submissions</li>
+                  <li>- Bring original documents during counselling</li>
                 </ul>
               </CardContent>
             </Card>

@@ -16,7 +16,7 @@ import {
   SidebarFooter,
   useSidebar
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Megaphone, Users, CalendarDays, Image as ImageIcon, Medal, LogOut, Loader2, GraduationCap, BookOpen, Heart, ClipboardCheck, UserPlus, Menu, PanelLeft, PanelLeftOpen, MoreHorizontal } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, CalendarDays, Medal, LogOut, Loader2, GraduationCap, BookOpen, Heart, ClipboardCheck, UserPlus, Menu, PanelLeft, PanelLeftOpen, MoreHorizontal } from "lucide-react";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useUser();
@@ -42,7 +42,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { title: "Student Life", url: "/admin/student-life", icon: Heart },
     { title: "Faculty Profiles", url: "/admin/faculty", icon: Users },
     { title: "Events", url: "/admin/events", icon: CalendarDays },
-    { title: "Gallery", url: "/admin/gallery", icon: ImageIcon },
     { title: "Rankers", url: "/admin/rankers", icon: Medal },
     { title: "Exam Results", url: "/admin/results", icon: ClipboardCheck },
     { title: "Admissions", url: "/admin/admissions", icon: UserPlus },

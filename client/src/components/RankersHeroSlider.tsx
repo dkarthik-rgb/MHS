@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Carousel,
   CarouselApi,
@@ -83,11 +83,11 @@ export function RankersHeroSlider({ rankers }: { rankers: RankerWithMeta[] }) {
                       {slide.studentName}
                     </h2>
                     <p className="mt-3 text-lg text-slate-100/90">
-                      {slide.examName || "Board Examination"} ·{" "}
+                      {slide.examName || "Board Examination"} -{" "}
                       {slide.className || `Class ${slide.year}`}
                     </p>
                     <div className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
-                      <StatPill label="Hall Ticket" value={slide.hallTicket || "—"} />
+                      <StatPill label="Hall Ticket" value={slide.hallTicket || "--"} />
                       <StatPill label="Marks" value={`${slide.score} Marks`} />
                       <StatPill
                         label="Percentage"
@@ -118,7 +118,7 @@ export function RankersHeroSlider({ rankers }: { rankers: RankerWithMeta[] }) {
                       </Button>
                     </div>
                   </div>
-                  <div className="absolute -left-10 top-8 hidden h-32 w-32 items-center justify-center rounded-full bg-white/10 text-4xl font-black text-white shadow-2xl lg:flex">
+                  <div className="absolute -left-10 top-8 hidden h-32 w-32 items-center justify-center rounded-full border border-white/30 bg-white/15 text-4xl font-black text-white shadow-2xl backdrop-blur lg:flex z-30">
                     #{slide.rank}
                   </div>
                 </div>
@@ -210,3 +210,4 @@ function StatPill({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

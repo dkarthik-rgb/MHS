@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { useFaculty, useCreateFaculty, useUpdateFaculty, useDeleteFaculty } from "@/hooks/use-faculty";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +29,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Users, Pencil, Trash2, UploadCloud } from "lucide-react";
+import Cropper, { type Area } from "react-easy-crop";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 type FacultyFormState = {
@@ -73,14 +75,33 @@ export default function AdminFaculty() {
   const [preview, setPreview] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
+  const [isApplyingCrop, setIsApplyingCrop] = useState(false);
 
   const publishedCount = useMemo(() => faculty?.filter((member: any) => member.status === "published").length ?? 0, [faculty]);
+
+  const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
 
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  useEffect(() => {
+    if (formState.imageSourceType !== "upload") {
+      setIsCropping(false);
+      setSelectedFile(null);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+    }
+  }, [formState.imageSourceType]);
 
   const resetDialogState = () => {
     setFormState(DEFAULT_FORM);
@@ -89,6 +110,11 @@ export default function AdminFaculty() {
     setPreview(null);
     setFormError(null);
     setEditingRecord(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setIsCropping(false);
+    setIsApplyingCrop(false);
   };
 
   const openCreateDialog = () => {
@@ -130,8 +156,40 @@ export default function AdminFaculty() {
     if (!fileList || fileList.length === 0) return;
     const file = fileList[0];
     if (preview) URL.revokeObjectURL(preview);
-    setPreview(URL.createObjectURL(file));
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
     setSelectedFile(file);
+    setIsCropping(true);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+  };
+
+  const handleApplyCrop = async () => {
+    if (!preview || !croppedAreaPixels) {
+      setFormError("Adjust the crop before applying.");
+      return;
+    }
+    try {
+      setIsApplyingCrop(true);
+      const croppedFile = await cropImage(
+        preview,
+        croppedAreaPixels,
+        selectedFile?.name ?? "faculty-photo.jpg",
+        selectedFile?.type ?? "image/jpeg",
+      );
+      setSelectedFile(croppedFile);
+      setPreview(URL.createObjectURL(croppedFile));
+      setIsCropping(false);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+      setFormError(null);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Unable to apply crop.");
+    } finally {
+      setIsApplyingCrop(false);
+    }
   };
 
   const validateForm = () => {
@@ -358,12 +416,68 @@ export default function AdminFaculty() {
                   </div>
                 )}
 
-                {preview && (
+                {preview && formState.imageSourceType === "upload" && selectedFile ? (
+                  <div className="space-y-3">
+                    <Label>{isCropping ? "Adjust Crop" : "Preview"}</Label>
+                    {isCropping ? (
+                      <>
+                        <div className="relative aspect-square w-full max-w-md overflow-hidden rounded-2xl bg-slate-200">
+                          <Cropper
+                            image={preview}
+                            crop={crop}
+                            zoom={zoom}
+                            aspect={1}
+                            onCropChange={setCrop}
+                            onZoomChange={setZoom}
+                            onCropComplete={onCropComplete}
+                            showGrid={false}
+                          />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Zoom</span>
+                          <Slider
+                            value={[zoom]}
+                            onValueChange={(value) => setZoom(value[0] ?? 1)}
+                            min={1}
+                            max={3}
+                            step={0.1}
+                            className="flex-1"
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                          <Button type="button" onClick={handleApplyCrop} disabled={isApplyingCrop || !croppedAreaPixels}>
+                            {isApplyingCrop ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply Crop"}
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => setIsCropping(false)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <img src={preview} alt="Preview" className="h-40 w-40 rounded-full object-cover border shadow" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsCropping(true);
+                            setCrop({ x: 0, y: 0 });
+                            setZoom(1);
+                            setCroppedAreaPixels(null);
+                          }}
+                        >
+                          Adjust Crop
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ) : preview ? (
                   <div className="space-y-2">
                     <Label>Preview</Label>
                     <img src={preview} alt="Preview" className="h-40 w-40 rounded-full object-cover border" />
                   </div>
-                )}
+                ) : null}
 
                 {formError && <p className="text-sm text-destructive">{formError}</p>}
 
@@ -384,7 +498,7 @@ export default function AdminFaculty() {
           <CardHeader>
             <CardTitle className="text-lg">Faculty Overview</CardTitle>
             <p className="text-sm text-muted-foreground">
-              {publishedCount} published • {faculty?.length ?? 0} total
+              {publishedCount} published â€¢ {faculty?.length ?? 0} total
             </p>
           </CardHeader>
           <CardContent>
@@ -421,16 +535,16 @@ export default function AdminFaculty() {
                           </div>
                           <div>
                             <p className="font-semibold">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.role} • {item.department}</p>
+                            <p className="text-xs text-muted-foreground">{item.role} â€¢ {item.department}</p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">{item.qualification || "—"}</div>
+                        <div className="text-sm">{item.qualification || "â€”"}</div>
                         <div className="text-xs text-muted-foreground">{item.experience || ""}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">{item.email || "—"}</div>
+                        <div className="text-sm">{item.email || "â€”"}</div>
                         <div className="text-xs text-muted-foreground">{item.phone || ""}</div>
                       </TableCell>
                       <TableCell>
@@ -473,3 +587,50 @@ export default function AdminFaculty() {
     </AdminLayout>
   );
 }
+
+async function createImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", (error) => reject(error));
+    image.crossOrigin = "anonymous";
+    image.src = url;
+  });
+}
+
+async function cropImage(imageSrc: string, cropArea: Area, fileName: string, mimeType: string): Promise<File> {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement("canvas");
+  canvas.width = cropArea.width;
+  canvas.height = cropArea.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Unable to access drawing context");
+  }
+  ctx.drawImage(
+    image,
+    cropArea.x,
+    cropArea.y,
+    cropArea.width,
+    cropArea.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Canvas is empty"));
+          return;
+        }
+        resolve(new File([blob], fileName, { type: mimeType }));
+      },
+      mimeType,
+      0.95,
+    );
+  });
+}
+
