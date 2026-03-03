@@ -188,7 +188,7 @@ export default function AdminResults() {
               onClick={() => {
                 const sample = [
                   "rollNo,studentName,examName,year,class,section,subjects_json",
-                  '"A101","Anita Rao","SSC Board","2024","10","A","[{""name"":""Maths"",""maxMarks"":100,""marksObtained"":95,""grade"":""A+"",""status"":""Pass""}]"',
+                  '"A101","Anita Rao","English Medium Board","2024","10","A","[{""name"":""Maths"",""maxMarks"":100,""marksObtained"":95,""grade"":""A+"",""status"":""Pass""}]"',
                 ].join("\n");
                 navigator.clipboard
                   .writeText(sample)
@@ -376,7 +376,7 @@ function ManualResultDialog({
     section: "",
     dob: "",
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-    examName: "SSC Board",
+    examName: "English Medium Board",
     year: String(new Date().getFullYear()),
   });
   const [subjects, setSubjects] = useState<SubjectFormRow[]>([createSubjectRow()]);

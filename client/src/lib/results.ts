@@ -22,7 +22,7 @@ export {
 };
 
 const CLASS_DEFINITIONS = [
-  "Class 10 (SSC)",
+  "Class 10",
   "Class 9",
   "Class 8",
   "Intermediate I",

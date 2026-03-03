@@ -170,11 +170,11 @@ export default function AdminRankers() {
                 </div>
                 <div className="space-y-2">
                   <Label>Class / Grade</Label>
-                  <Input value={formData.className} onChange={(event) => setFormData((prev) => ({ ...prev, className: event.target.value }))} placeholder="Class 10 (SSC)" />
+                  <Input value={formData.className} onChange={(event) => setFormData((prev) => ({ ...prev, className: event.target.value }))} placeholder="Class 10" />
                 </div>
                 <div className="space-y-2 col-span-2">
                   <Label>Exam Name</Label>
-                  <Input value={formData.examName} onChange={(event) => setFormData((prev) => ({ ...prev, examName: event.target.value }))} placeholder="SSC Board Finals" />
+                  <Input value={formData.examName} onChange={(event) => setFormData((prev) => ({ ...prev, examName: event.target.value }))} placeholder="English Medium Board Finals" />
                 </div>
                 <div className="space-y-2">
                   <Label>Rank</Label>

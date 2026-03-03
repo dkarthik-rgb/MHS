@@ -3,6 +3,8 @@ import { SCHOOL_PHONE_DISPLAY, SCHOOL_PHONE_TEL, SCHOOL_EMAIL } from "@/lib/bran
 import { SchoolLogo } from "@/components/SchoolLogo";
 
 const FOOTER_BG = "/images/footer-campus.jpg";
+const MAP_EMBED_URL =
+  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3812.86479619912!2d81.6590475757753!3d17.12809321022192!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3a37078b7f86d983%3A0xc44bee43055d8158!2sMONTESSORI%20HIGH%20SCHOOL%20%2C%20TALLAPUDI!5e0!3m2!1sen!2sin!4v1772561538660!5m2!1sen!2sin";
 
 const QUICK_LINKS = [
   { label: "Home", href: "/" },
@@ -22,7 +24,7 @@ export function Footer() {
       <div aria-hidden className="absolute inset-0">
         <img
           src={FOOTER_BG}
-          alt="Montessori High School campus"
+          alt="Montessori English Medium School campus"
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-[2px] mix-blend-multiply" />
@@ -34,7 +36,7 @@ export function Footer() {
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-white">
                 <SchoolLogo size={48} className="h-12 w-12 rounded-full bg-white p-1 shadow" />
-                <h2 className="text-xl font-bold font-serif">Montessori High School</h2>
+                <h2 className="text-xl font-bold font-serif">Montessori English Medium School</h2>
               </div>
               <p className="text-sm leading-relaxed max-w-xs">
                 Empowering students with knowledge, character, and vision for a brighter tomorrow. Excellence in education since establishment.
@@ -65,23 +67,28 @@ export function Footer() {
                     Andhra Pradesh 534341
                   </span>
                 </li>
-                <li>
-                  <a
-                    href="https://share.google/vdeciSFUx1luhAIjt"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full border border-accent px-4 py-2 text-xs font-semibold text-accent hover:bg-accent hover:text-slate-900 transition-colors"
-                  >
-                    Navigate to School
+                <li className="space-y-3">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-accent px-4 py-2 text-xs font-semibold text-accent">
                     <MapPin className="h-4 w-4" />
-                  </a>
+                    Navigate to School
+                  </span>
+                  <div className="rounded-2xl overflow-hidden shadow-xl border border-white/20">
+                    <iframe
+                      title="Montessori English Medium School Map"
+                      src={MAP_EMBED_URL}
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="w-full h-56"
+                    />
+                  </div>
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone className="h-5 w-5 text-accent shrink-0" />
                   <a
                     href={`tel:${SCHOOL_PHONE_TEL}`}
                     className="hover:text-accent transition-colors"
-                    aria-label={`Call Montessori High School at ${SCHOOL_PHONE_DISPLAY}`}
+                    aria-label={`Call Montessori English Medium School at ${SCHOOL_PHONE_DISPLAY}`}
                   >
                     {SCHOOL_PHONE_DISPLAY}
                   </a>
@@ -96,7 +103,7 @@ export function Footer() {
             </div>
           </div>
           <div className="border-t border-white/20 pt-6 text-center text-sm text-white/80">
-            <p>© {new Date().getFullYear()} Montessori High School (SSC). All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Montessori English Medium School. All rights reserved.</p>
           </div>
         </div>
       </div>

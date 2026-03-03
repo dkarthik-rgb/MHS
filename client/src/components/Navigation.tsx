@@ -31,46 +31,47 @@ export function Navigation() {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-primary text-primary-foreground shadow-lg">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <SchoolLogo size={56} className="h-14 w-14 bg-white rounded-full p-1 shadow-md" />
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight leading-tight">
-                MONTESSORI
-              </h1>
-              <p className="text-xs text-primary-foreground/80 font-medium tracking-wider">
-                HIGH SCHOOL (SSC)
-              </p>
+      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10">
+        <div className="flex items-center justify-between gap-4 py-3 md:py-4">
+          <div className="flex items-center gap-4 shrink-0">
+            <SchoolLogo size={70} className="h-16 w-16 bg-white rounded-full p-2 shadow-md" />
+            <div className="text-white leading-tight">
+              <span className="block text-2xl md:text-[28px] font-black uppercase tracking-[0.2em]">
+                Montessori
+              </span>
+              <div className="mt-1">
+                <span className="inline-flex items-center rounded-full bg-white text-primary px-4 py-1 text-[0.68rem] sm:text-[0.72rem] font-semibold uppercase tracking-[0.32em] shadow-sm">
+                  English Medium (EM) School
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex gap-8">
+          <button
+            className="md:hidden ml-auto p-2 text-primary-foreground"
+            onClick={() => setIsMobileOpen(!isMobileOpen)}
+            aria-label="Toggle navigation menu"
+          >
+            {isMobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+
+          <nav className="hidden md:flex flex-1 justify-center gap-6 text-[0.82rem] font-semibold uppercase tracking-[0.18em]">
             {navLinks.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
-                className="text-sm font-semibold uppercase tracking-wider text-primary-foreground/90 hover:text-accent transition-colors duration-200"
+                className="text-primary-foreground/90 hover:text-accent transition-colors duration-200"
               >
                 {link.name}
               </a>
             ))}
           </nav>
 
-          <div className="hidden md:block">
+          <div className="hidden md:block shrink-0">
             <Button variant="secondary" className="font-bold text-primary hover:bg-accent hover:text-accent-foreground border-none shadow-md" asChild>
               <Link href="/admin">Portal Login</Link>
             </Button>
           </div>
-
-          {/* Mobile Menu Toggle */}
-          <button
-            className="md:hidden p-2 text-primary-foreground"
-            onClick={() => setIsMobileOpen(!isMobileOpen)}
-          >
-            {isMobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
         </div>
       </div>
 
