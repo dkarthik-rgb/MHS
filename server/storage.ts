@@ -26,6 +26,8 @@ import {
   type AdmissionStatus,
   type AcademicDocument,
   type InsertAcademicDocument,
+  type SitePreferences,
+  type SitePreferenceInput,
 } from "@shared/schema";
 import {
   normalizeResultData,
@@ -58,6 +60,7 @@ const COLLECTION_PATHS = {
   results: "results",
   admissions: "admissions",
   academicDocuments: "academicDocuments",
+  sitePreferences: "sitePreferences",
 } as const;
 
 const RESULT_PHOTO_KEYS = [
@@ -207,6 +210,9 @@ export interface IStorage {
   createAcademicDocument(data: InsertAcademicDocument): Promise<AcademicDocument>;
   updateAcademicDocumentStatus(id: number, status: string): Promise<AcademicDocument>;
   deleteAcademicDocument(id: number): Promise<void>;
+
+  getSitePreferences(): Promise<SitePreferences>;
+  updateSitePreferences(data: SitePreferenceInput): Promise<SitePreferences>;
 }
 
 export type AcademicDocFilters = {
@@ -834,6 +840,35 @@ class FirebaseStorage implements IStorage {
 
   async deleteAcademicDocument(id: number): Promise<void> {
     await removeRecord("academicDocuments", id);
+  }
+
+  async getSitePreferences(): Promise<SitePreferences> {
+    return this.ensureSitePreferences();
+  }
+
+  async updateSitePreferences(data: SitePreferenceInput): Promise<SitePreferences> {
+    const current = await this.ensureSitePreferences();
+    const next: SitePreferences = {
+      ...current,
+      ...data,
+      updatedAt: new Date().toISOString() as unknown as Date,
+    };
+    await saveRecord("sitePreferences", next);
+    return next;
+  }
+
+  private async ensureSitePreferences(): Promise<SitePreferences> {
+    const existing = await listRecords<SitePreferences>("sitePreferences");
+    if (existing.length > 0) {
+      return existing[0];
+    }
+    const defaults: SitePreferences = {
+      id: generateNumericId(),
+      showResultsInNav: true,
+      updatedAt: new Date().toISOString() as unknown as Date,
+    };
+    await saveRecord("sitePreferences", defaults);
+    return defaults;
   }
 }
 

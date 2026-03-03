@@ -148,6 +148,10 @@ const studentLifeUpdateInput = studentLifeCreateInput.partial().extend({
   retainImageIds: z.array(z.number()).optional(),
 });
 
+const sitePreferencesSchema = z.object({
+  showResultsInNav: z.boolean(),
+});
+
 const facultyBaseInput = z.object({
   name: z.string().min(2),
   role: z.string().min(2),
@@ -192,6 +196,19 @@ export const api = {
         401: errorSchemas.unauthorized,
       },
     }
+  },
+  sitePreferences: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/site-preferences' as const,
+      responses: { 200: sitePreferencesSchema },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/site-preferences' as const,
+      input: sitePreferencesSchema,
+      responses: { 200: sitePreferencesSchema, 401: errorSchemas.unauthorized },
+    },
   },
   announcements: {
     list: {

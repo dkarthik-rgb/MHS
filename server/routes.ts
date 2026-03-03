@@ -61,13 +61,43 @@ function deleteFileSafe(filePath?: string | null) {
   deleteStoredAsset(filePath);
 }
 
+const configuredAssetBaseUrl = (() => {
+  const raw = process.env.ASSET_BASE_URL?.trim();
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    const trimmedPath = parsed.pathname.endsWith("/") ? parsed.pathname.slice(0, -1) : parsed.pathname;
+    return `${parsed.origin}${trimmedPath}`;
+  } catch (error) {
+    console.warn(`[assets] Invalid ASSET_BASE_URL "${raw}". Falling back to request host.`, error);
+    return null;
+  }
+})();
+
+function getAssetBaseUrl(req?: Request): string | null {
+  if (configuredAssetBaseUrl) return configuredAssetBaseUrl;
+  if (!req) return null;
+  const host = req.get("x-forwarded-host") ?? req.get("host");
+  if (!host) return null;
+  const protocol = req.get("x-forwarded-proto") ?? req.protocol ?? "http";
+  return `${protocol}://${host}`;
+}
+
+function buildAssetUrl(relativePath: string, baseUrl?: string | null): string {
+  if (!baseUrl) return relativePath;
+  const normalizedBase = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  const normalizedPath = relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
+  return `${normalizedBase}${normalizedPath}`;
+}
+
 async function persistUploadedFile(
   file: Express.Multer.File,
-  options: { bucketFolder: string; entityId?: number | string },
+  options: { bucketFolder: string; entityId?: number | string; assetBaseUrl?: string | null },
 ) {
-  const fallbackUrl = path
+  const fallbackPath = path
     .posix.join("/uploads", options.bucketFolder, file.filename)
     .replace(/\\/g, "/");
+  const fallbackUrl = buildAssetUrl(fallbackPath, options.assetBaseUrl);
   const folderSegments = [options.bucketFolder];
   if (typeof options.entityId !== "undefined") {
     folderSegments.push(String(options.entityId));
@@ -299,6 +329,21 @@ export async function registerRoutes(
     return res.status(500).json({ message: 'Internal server error' });
   };
 
+  app.get(api.sitePreferences.get.path, async (_req, res) => {
+    const prefs = await storage.getSitePreferences();
+    res.json({ showResultsInNav: prefs.showResultsInNav });
+  });
+
+  app.put(api.sitePreferences.update.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.sitePreferences.update.input.parse(req.body);
+      const prefs = await storage.updateSitePreferences(input);
+      res.json({ showResultsInNav: prefs.showResultsInNav });
+    } catch (err) {
+      handleZodError(res, err);
+    }
+  });
+
   // Announcements
   app.get(api.announcements.list.path, async (req, res) => {
     const status = req.query.status as string | undefined;
@@ -339,6 +384,7 @@ export async function registerRoutes(
       try {
         const payload = parseJsonPayload(req.body);
         const input = api.faculty.create.input.parse(payload);
+        const assetBaseUrl = getAssetBaseUrl(req);
         const sourceType = input.imageSourceType ?? "url";
         if (sourceType === "upload" && !req.file) {
           return res.status(400).json({ message: "Upload an image for this faculty profile." });
@@ -353,7 +399,11 @@ export async function registerRoutes(
             }
           | null = null;
         if (sourceType === "upload" && req.file) {
-          uploadedImage = await persistUploadedFile(req.file, { bucketFolder: "faculty", entityId: input.name });
+          uploadedImage = await persistUploadedFile(req.file, {
+            bucketFolder: "faculty",
+            entityId: input.name,
+            assetBaseUrl,
+          });
         }
         const data: InsertFaculty = {
           name: input.name.trim(),
@@ -394,6 +444,7 @@ export async function registerRoutes(
         }
         const payload = parseJsonPayload(req.body);
         const input = api.faculty.update.input.parse(payload);
+        const assetBaseUrl = getAssetBaseUrl(req);
         const updates: Partial<InsertFaculty> = {};
         if (typeof input.name === "string") updates.name = input.name.trim();
         if (typeof input.role === "string") updates.role = input.role.trim();
@@ -414,6 +465,7 @@ export async function registerRoutes(
             const uploadedImage = await persistUploadedFile(req.file, {
               bucketFolder: "faculty",
               entityId: id,
+              assetBaseUrl,
             });
             if (existing.imageSourceType === "upload" && existing.imagePath) {
               deleteFileSafe(existing.imagePath);
@@ -489,11 +541,13 @@ export async function registerRoutes(
         const input = api.events.create.input.parse(payload);
         const eventData = buildEventInsertPayload(input);
         const created = await storage.createEvent(eventData);
+        const assetBaseUrl = getAssetBaseUrl(req);
         const uploadImages = await Promise.all(
           files.map(async (file) => {
             const persisted = await persistUploadedFile(file, {
               bucketFolder: "events",
               entityId: created.id,
+              assetBaseUrl,
             });
             return {
               imageUrl: persisted.fileUrl,
@@ -534,6 +588,7 @@ export async function registerRoutes(
         }
         const payload = parseJsonPayload(req.body);
         const input = api.events.update.input.parse(payload);
+        const assetBaseUrl = getAssetBaseUrl(req);
         const updates = buildEventUpdatePayload(input, existing.startDateTime);
         if (Object.keys(updates).length > 0) {
           await storage.updateEvent(id, updates);
@@ -551,6 +606,7 @@ export async function registerRoutes(
             const persisted = await persistUploadedFile(file, {
               bucketFolder: "events",
               entityId: id,
+              assetBaseUrl,
             });
             return {
               imageUrl: persisted.fileUrl,
@@ -664,6 +720,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Upload a valid image file." });
       }
       fileToCleanup = req.file;
+      const assetBaseUrl = getAssetBaseUrl(req);
       const ranker = await storage.getRanker(id);
       if (!ranker) {
         cleanupUploadedFiles(req.file);
@@ -672,6 +729,7 @@ export async function registerRoutes(
       const persisted = await persistUploadedFile(req.file, {
         bucketFolder: "rankers",
         entityId: ranker.hallTicket || id,
+        assetBaseUrl,
       });
       const manualSet = new Set(ranker.manualFields ?? []);
       manualSet.add("imageUrl");
@@ -755,9 +813,11 @@ export async function registerRoutes(
         }
 
         const extractedText = await extractPdfText(req.file.path);
+        const assetBaseUrl = getAssetBaseUrl(req);
         const persistedFile = await persistUploadedFile(req.file, {
           bucketFolder: "academics",
           entityId: `${docType}-${academicYear}`,
+          assetBaseUrl,
         });
 
         const doc = await storage.createAcademicDocument({
@@ -862,11 +922,13 @@ export async function registerRoutes(
           highlightTag: input.highlightTag?.trim() || null,
           status: input.status ?? "draft",
         });
+        const assetBaseUrl = getAssetBaseUrl(req);
         const uploadImages = await Promise.all(
           files.map(async (file, index) => {
             const persisted = await persistUploadedFile(file, {
               bucketFolder: "student-life",
               entityId: entry.id,
+              assetBaseUrl,
             });
             return {
               imageUrl: persisted.fileUrl,
@@ -900,6 +962,7 @@ export async function registerRoutes(
         }
         const payload = parseJsonPayload(req.body);
         const input = api.studentLife.update.input.parse(payload);
+        const assetBaseUrl = getAssetBaseUrl(req);
         const updates: Partial<InsertStudentLife> = {};
         if (typeof input.title === "string") updates.title = input.title.trim();
         if (typeof input.description === "string") updates.description = input.description.trim();
@@ -934,6 +997,7 @@ export async function registerRoutes(
               const persisted = await persistUploadedFile(file, {
                 bucketFolder: "student-life",
                 entityId: id,
+                assetBaseUrl,
               });
               return {
                 imageUrl: persisted.fileUrl,
@@ -1080,6 +1144,10 @@ export async function prepareInitialData() {
       role: "admin",
     });
   }
+
+  await storage.getSitePreferences().catch((err) =>
+    console.error("Failed to initialize site preferences", err),
+  );
 
   await seedDatabase();
   try {

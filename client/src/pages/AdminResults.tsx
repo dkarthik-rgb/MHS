@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useResults, useBulkCreateResults, useDeleteResult } from "@/hooks/use-additional-content";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { useSitePreferences, useUpdateSitePreferences } from "@/hooks/use-site-preferences";
 import { cn } from "@/lib/utils";
 import {
   SubjectResult,
@@ -83,6 +85,8 @@ export default function AdminResults() {
   const { data: results = [], isLoading } = useResults();
   const bulkCreate = useBulkCreateResults();
   const deleteResult = useDeleteResult();
+  const { data: sitePrefs, isLoading: isPrefsLoading } = useSitePreferences();
+  const updateSitePrefs = useUpdateSitePreferences();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -112,6 +116,27 @@ export default function AdminResults() {
   };
 
   const openFileDialog = () => fileInputRef.current?.click();
+
+  const handleToggleResultsLink = (checked: boolean) => {
+    updateSitePrefs.mutate(
+      { showResultsInNav: checked },
+      {
+        onSuccess: () =>
+          toast({
+            title: checked ? "Results visible" : "Results hidden",
+            description: checked
+              ? "The Results link now appears in the public site header."
+              : "The Results link has been removed from the public header.",
+          }),
+        onError: (error: Error) =>
+          toast({
+            variant: "destructive",
+            title: "Unable to update preference",
+            description: error.message,
+          }),
+      },
+    );
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -191,6 +216,29 @@ export default function AdminResults() {
             </Dialog>
           </div>
         </div>
+
+        <Card className="border border-slate-100 shadow-sm">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base">Results Link Visibility</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Toggle whether the public navigation bar should display the Results page link.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-muted-foreground">
+                {sitePrefs?.showResultsInNav ? "Visible" : "Hidden"}
+              </span>
+              <Switch
+                id="results-nav-toggle"
+                checked={sitePrefs?.showResultsInNav ?? true}
+                disabled={isPrefsLoading || updateSitePrefs.isPending}
+                onCheckedChange={handleToggleResultsLink}
+                aria-label="Toggle Results link visibility"
+              />
+            </div>
+          </CardHeader>
+        </Card>
 
         <div className="text-sm text-muted-foreground bg-white border rounded-md p-4 shadow-sm space-y-2">
           <p className="font-medium text-foreground">Template requirements</p>

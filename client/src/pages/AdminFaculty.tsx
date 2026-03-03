@@ -33,6 +33,22 @@ import Cropper, { type Area } from "react-easy-crop";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
+const displayValue = (value?: string | number | null) => {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "number") return value.toString();
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : "-";
+};
+
+const displayRoleDepartment = (role?: string | null, department?: string | null) => {
+  const roleText = displayValue(role);
+  const deptText = displayValue(department);
+  if (roleText === "-" && deptText === "-") return "-";
+  if (roleText === "-") return deptText;
+  if (deptText === "-") return roleText;
+  return `${roleText} - ${deptText}`;
+};
+
 type FacultyFormState = {
   name: string;
   role: string;
@@ -498,7 +514,7 @@ export default function AdminFaculty() {
           <CardHeader>
             <CardTitle className="text-lg">Faculty Overview</CardTitle>
             <p className="text-sm text-muted-foreground">
-              {publishedCount} published â€¢ {faculty?.length ?? 0} total
+              {publishedCount} published / {faculty?.length ?? 0} total
             </p>
           </CardHeader>
           <CardContent>
@@ -535,17 +551,23 @@ export default function AdminFaculty() {
                           </div>
                           <div>
                             <p className="font-semibold">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.role} â€¢ {item.department}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {displayRoleDepartment(item.role, item.department)}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">{item.qualification || "â€”"}</div>
-                        <div className="text-xs text-muted-foreground">{item.experience || ""}</div>
+                        <div className="text-sm">{displayValue(item.qualification)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.experience ? displayValue(item.experience) : "-"}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">{item.email || "â€”"}</div>
-                        <div className="text-xs text-muted-foreground">{item.phone || ""}</div>
+                        <div className="text-sm">{displayValue(item.email)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.phone ? displayValue(item.phone) : "-"}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge

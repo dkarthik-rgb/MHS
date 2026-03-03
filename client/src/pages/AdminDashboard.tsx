@@ -9,7 +9,6 @@ export default function AdminDashboard() {
   const { data: announcements } = useAnnouncements();
   const { data: faculty } = useFaculty();
   const { data: rankers } = useRankers();
-
   const stats = [
     {
       title: "Total Announcements",

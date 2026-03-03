@@ -224,4 +224,12 @@ export const insertAdmissionSchema = createInsertSchema(admissions).omit({
 export type Admission = typeof admissions.$inferSelect;
 export type InsertAdmission = z.infer<typeof insertAdmissionSchema>;
 
+export type SitePreferences = {
+  id: number;
+  showResultsInNav: boolean;
+  updatedAt?: string | Date | null;
+};
+
+export type SitePreferenceInput = Pick<SitePreferences, "showResultsInNav">;
+
 export type AuthResponse = { message: string, user?: { id: number, email: string, role: string | null } };

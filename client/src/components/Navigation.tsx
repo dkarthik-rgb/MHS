@@ -1,25 +1,33 @@
 import { Link, useLocation } from "wouter";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SCHOOL_PHONE_TEL } from "@/lib/branding";
 import { SchoolLogo } from "@/components/SchoolLogo";
+import { useSitePreferences } from "@/hooks/use-site-preferences";
+
+type NavLink = { name: string; href: string };
 
 export function Navigation() {
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { data: sitePrefs } = useSitePreferences();
+  const showResultsLink = sitePrefs?.showResultsInNav ?? true;
 
-  const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Events", href: "/events" },
-    { name: "Academics", href: "/academics" },
-    { name: "Student Life", href: "/student-life" },
-    { name: "Faculty", href: "/faculty" },
-    { name: "Results", href: "/results" },
-    { name: "Rankers", href: "/rankers" },
-    { name: "Admissions", href: "/admissions" },
-    { name: "Contact", href: `tel:${SCHOOL_PHONE_TEL}` },
-  ];
+  const navLinks = useMemo<NavLink[]>(() => {
+    const links: Array<NavLink | null> = [
+      { name: "Home", href: "/" },
+      { name: "Events", href: "/events" },
+      { name: "Academics", href: "/academics" },
+      { name: "Student Life", href: "/student-life" },
+      { name: "Faculty", href: "/faculty" },
+      showResultsLink ? { name: "Results", href: "/results" } : null,
+      { name: "Rankers", href: "/rankers" },
+      { name: "Admissions", href: "/admissions" },
+      { name: "Contact", href: `tel:${SCHOOL_PHONE_TEL}` },
+    ];
+    return links.filter((link): link is NavLink => Boolean(link));
+  }, [showResultsLink]);
 
   return (
     <header className="sticky top-0 z-50 w-full bg-primary text-primary-foreground shadow-lg">
