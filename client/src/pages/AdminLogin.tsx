@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { SchoolLogo } from "@/components/SchoolLogo";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
@@ -38,10 +39,10 @@ export default function AdminLogin() {
       <div className="absolute top-8 left-8">
         <button
           type="button"
-          className="flex items-center gap-2 cursor-pointer"
+          className="flex items-center gap-3 cursor-pointer"
           onClick={() => setLocation("/")}
         >
-          <GraduationCap className="h-8 w-8 text-primary" />
+          <SchoolLogo size={48} className="h-12 w-12 rounded-full bg-white p-1 shadow" />
           <span className="font-bold text-xl text-primary">Montessori Admin</span>
         </button>
       </div>

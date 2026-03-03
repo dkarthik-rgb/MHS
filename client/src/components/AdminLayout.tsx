@@ -16,7 +16,8 @@ import {
   SidebarFooter,
   useSidebar
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Megaphone, Users, CalendarDays, Medal, LogOut, Loader2, GraduationCap, BookOpen, Heart, ClipboardCheck, UserPlus, Menu, PanelLeft, PanelLeftOpen, MoreHorizontal } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, CalendarDays, Medal, LogOut, Loader2, BookOpen, Heart, ClipboardCheck, UserPlus, Menu, PanelLeft, PanelLeftOpen, MoreHorizontal } from "lucide-react";
+import { SchoolLogo } from "@/components/SchoolLogo";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useUser();
@@ -91,10 +92,8 @@ function AdminChrome({
     <div className="flex min-h-screen w-full bg-slate-50">
       <Sidebar className="border-r border-[#0B2F5B]/25 shadow-2xl">
         <SidebarHeader className="p-4 py-6">
-          <div className="flex items-center gap-2 px-2 text-primary">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-[#0B2F5B] font-bold">
-              <GraduationCap className="h-5 w-5" />
-            </div>
+          <div className="flex items-center gap-3 px-2 text-primary">
+            <SchoolLogo size={48} className="h-12 w-12 rounded-full bg-white/95 p-1 shadow-md" />
             <div className="font-bold font-serif leading-tight text-sidebar-foreground">
               <div>Montessori</div>
               <div className="text-xs text-white/70 font-sans tracking-wide">Admin Portal</div>

@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
-import { GraduationCap, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SCHOOL_PHONE_TEL } from "@/lib/branding";
+import { SchoolLogo } from "@/components/SchoolLogo";
 
 export function Navigation() {
   const [location] = useLocation();
@@ -25,7 +26,7 @@ export function Navigation() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center gap-3">
-            <GraduationCap className="h-10 w-10 text-accent" />
+            <SchoolLogo size={56} className="h-14 w-14 bg-white rounded-full p-1 shadow-md" />
             <div>
               <h1 className="text-xl md:text-2xl font-bold tracking-tight leading-tight">
                 MONTESSORI

@@ -1,5 +1,6 @@
-﻿import { GraduationCap, MapPin, Phone, Mail } from "lucide-react";
+﻿import { MapPin, Phone, Mail } from "lucide-react";
 import { SCHOOL_PHONE_DISPLAY, SCHOOL_PHONE_TEL, SCHOOL_EMAIL } from "@/lib/branding";
+import { SchoolLogo } from "@/components/SchoolLogo";
 
 const FOOTER_BG = "/images/footer-campus.jpg";
 
@@ -32,7 +33,7 @@ export function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-white">
-                <GraduationCap className="h-8 w-8 text-accent" />
+                <SchoolLogo size={48} className="h-12 w-12 rounded-full bg-white p-1 shadow" />
                 <h2 className="text-xl font-bold font-serif">Montessori High School</h2>
               </div>
               <p className="text-sm leading-relaxed max-w-xs">
