@@ -4,6 +4,8 @@ export type SubjectResult = {
   marksObtained: number;
   grade?: string | null;
   status?: string | null;
+  passMarks?: number | null;
+  passPercentage?: number | null;
 };
 
 export type ResultSummary = {
@@ -53,6 +55,7 @@ const CORE_METADATA_KEYS = new Set(
     "session",
     "class",
     "class name",
+    "classname",
     "class standard",
     "class section",
     "classsection",
@@ -112,11 +115,18 @@ export function isSubjectFail(subject: SubjectResult) {
     return true;
   }
   if (subject.maxMarks <= 0) return false;
+  if (Number.isFinite(subject.passMarks)) {
+    return subject.marksObtained < (subject.passMarks as number);
+  }
   const percentage = (subject.marksObtained / subject.maxMarks) * 100;
-  return percentage < 40;
+  const threshold = Number.isFinite(subject.passPercentage) ? (subject.passPercentage as number) : 40;
+  return percentage < threshold;
 }
 
-export function summariseSubjects(subjects: SubjectResult[]): ResultSummary {
+export function summariseSubjects(
+  subjects: SubjectResult[],
+  options?: { overallPassPercentage?: number; overallPassMarks?: number },
+): ResultSummary {
   const safeSubjects = subjects
     .filter((sub) => sub && sub.name)
     .map((subject) => ({
@@ -132,7 +142,19 @@ export function summariseSubjects(subjects: SubjectResult[]): ResultSummary {
   const percentage = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
   const grade = calculateGradeFromPercentage(percentage);
   const hasFailure = safeSubjects.some(isSubjectFail);
-  const overallStatus = hasFailure || percentage < 40 ? "Fail" : "Pass";
+  const overallPassMarks =
+    options && Number.isFinite(options.overallPassMarks) && (options.overallPassMarks as number) > 0
+      ? (options.overallPassMarks as number)
+      : undefined;
+  const overallThreshold =
+    options && Number.isFinite(options.overallPassPercentage)
+      ? (options.overallPassPercentage as number)
+      : 40;
+  const overallStatus =
+    hasFailure ||
+    (Number.isFinite(overallPassMarks) ? totalObtained < (overallPassMarks as number) : percentage < overallThreshold)
+      ? "Fail"
+      : "Pass";
 
   return {
     subjects: safeSubjects.map((subject) => ({
@@ -248,7 +270,13 @@ export function normalizeResultData({
       ? sanitizeSubjects(base.subjects as SubjectResult[])
       : inferSubjectsFromRecord(base);
 
-  const summary = summariseSubjects(subjects);
+  const overallPassMarks = toNumber(base.overallPassMarks);
+  const overallPassPercentage = toNumber(base.overallPassPercentage);
+  const summary = summariseSubjects(subjects, {
+    overallPassMarks:
+      Number.isFinite(overallPassMarks) && (overallPassMarks as number) > 0 ? (overallPassMarks as number) : undefined,
+    overallPassPercentage: Number.isFinite(overallPassPercentage) ? (overallPassPercentage as number) : undefined,
+  });
 
   const normalized = {
     ...base,
@@ -393,7 +421,7 @@ function findCompanionValue(
 
 function sanitizeSubjects(subjects: SubjectResult[]) {
   return subjects
-    .filter((subject) => subject && subject.name)
+    .filter((subject) => subject && subject.name && !isMetadataSubjectName(subject.name))
     .map((subject) => ({
       name: titleCase(subject.name),
       maxMarks:
@@ -404,6 +432,14 @@ function sanitizeSubjects(subjects: SubjectResult[]) {
         typeof subject.marksObtained === "number" && Number.isFinite(subject.marksObtained)
           ? subject.marksObtained
           : 0,
+      passMarks:
+        typeof subject.passMarks === "number" && Number.isFinite(subject.passMarks) && subject.passMarks > 0
+          ? subject.passMarks
+          : null,
+      passPercentage:
+        typeof subject.passPercentage === "number" && Number.isFinite(subject.passPercentage) && subject.passPercentage > 0
+          ? subject.passPercentage
+          : null,
       grade: subject.grade ?? null,
       status: subject.status ?? null,
     }));
@@ -441,7 +477,24 @@ function coalesce<T>(...values: T[]): T | undefined {
 }
 
 function normalizeKey(key: string) {
-  return key.replace(/[_-]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  return key
+    .toString()
+    .toLowerCase()
+    .replace(/[_-]/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function isMetadataSubjectName(name?: string | null) {
+  if (!name) return false;
+  const normalized = normalizeKey(name);
+  if (!normalized) return false;
+  if (CORE_METADATA_KEYS.has(normalized)) return true;
+  if (normalized.startsWith("class ")) return true;
+  if (normalized.startsWith("grade ")) return true;
+  if (normalized.startsWith("section ")) return true;
+  return false;
 }
 
 function titleCase(value?: string | null) {

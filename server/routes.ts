@@ -31,6 +31,12 @@ import { admissionStatusValues, eventStatusValues } from "@shared/schema";
 const MemoryStore = createMemoryStore(session);
 const SESSION_MAX_AGE_MS = Number(process.env.ADMIN_SESSION_MAX_AGE_MS ?? 60 * 60 * 1000);
 
+function isPlainObject(value: unknown): value is Record<string, any> {
+  if (!value || typeof value !== "object") return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
 function normalizeFiles(
   files?: Express.Multer.File[] | Express.Multer.File | { [fieldname: string]: Express.Multer.File[] },
 ): Express.Multer.File[] {

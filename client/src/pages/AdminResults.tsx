@@ -22,6 +22,7 @@ import {
   summariseSubjects,
   formatPercentage,
   isSubjectFail,
+  isMetadataSubjectName,
   normalizeResultData,
   inferSubjectsFromRecord,
   slugifyClass,
@@ -48,12 +49,15 @@ type ManualFormState = {
   academicYear: string;
   examName: string;
   year: string;
+  overallPassMarks: string;
+  overallPassPercentage: string;
 };
 
 type SubjectFormRow = {
   id: string;
   name: string;
   maxMarks: string;
+  passMarks: string;
   marksObtained: string;
   grade: string;
   status: "Pass" | "Fail";
@@ -66,6 +70,7 @@ const createSubjectRow = (): SubjectFormRow => ({
       : Math.random().toString(36).slice(2),
   name: "",
   maxMarks: "100",
+  passMarks: "40",
   marksObtained: "",
   grade: "",
   status: "Pass",
@@ -75,6 +80,23 @@ const CLASS_LABEL_LOOKUP = new Map(CLASS_OPTIONS.map((option) => [option.value, 
 const getClassLabel = (value?: string) => {
   if (!value) return "";
   return CLASS_LABEL_LOOKUP.get(value) ?? value;
+};
+
+const deriveSubjectStatus = (row: SubjectFormRow): SubjectFormRow["status"] => {
+  const parsedSubject: SubjectResult = {
+    name: row.name,
+    maxMarks: Number(row.maxMarks) || 100,
+    passMarks: Number(row.passMarks),
+    marksObtained: Number(row.marksObtained) || 0,
+    grade: row.grade,
+    status: undefined,
+  };
+  const passMarkValue =
+    Number.isFinite(parsedSubject.passMarks) && (parsedSubject.passMarks as number) > 0
+      ? (parsedSubject.passMarks as number)
+      : undefined;
+  const evaluated = { ...parsedSubject, passMarks: passMarkValue, status: undefined };
+  return isSubjectFail(evaluated) ? "Fail" : "Pass";
 };
 
 export default function AdminResults() {
@@ -291,10 +313,15 @@ export default function AdminResults() {
                   isSubmitting={updateResult.isPending}
                   initialResult={editingResult}
                   onSubmit={async (payload) => {
-                    await updateResult.mutateAsync({ id: editingResult.id, payload });
-                    toast({ title: "Result updated", description: `${payload.studentName} updated successfully.` });
-                    setEditOpen(false);
-                    setEditingResult(null);
+                    try {
+                      await updateResult.mutateAsync({ id: editingResult.id, payload });
+                      toast({ title: "Result updated", description: `${payload.studentName} updated successfully.` });
+                      setEditOpen(false);
+                      setEditingResult(null);
+                    } catch (err) {
+                      const message = err instanceof Error ? err.message : "Unable to update result";
+                      toast({ variant: "destructive", title: "Update failed", description: message });
+                    }
                   }}
                 />
               )}
@@ -623,8 +650,11 @@ function ManualResultDialog({
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
     examName: "English Medium Board",
     year: String(new Date().getFullYear()),
+    overallPassMarks: "",
+    overallPassPercentage: "40",
   });
   const [subjects, setSubjects] = useState<SubjectFormRow[]>([createSubjectRow()]);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!initialResult) return;
@@ -635,7 +665,7 @@ function ManualResultDialog({
       (data.academicYear as string | undefined) ||
       (typeof initialResult.year === "number" ? `${initialResult.year - 1}-${initialResult.year}` : "");
     const subjectRows = (Array.isArray(data.subjects) ? (data.subjects as SubjectResult[]) : inferSubjectsFromRecord(data))
-      .filter((subject) => subject && subject.name)
+      .filter((subject) => subject && subject.name && !isMetadataSubjectName(subject.name))
       .map((subject) => ({
         id:
           typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -643,10 +673,13 @@ function ManualResultDialog({
             : Math.random().toString(36).slice(2),
         name: subject.name,
         maxMarks: String(subject.maxMarks ?? 100),
+        passMarks: String(subject.passMarks ?? 40),
         marksObtained: String(subject.marksObtained ?? ""),
         grade: subject.grade || "",
         status: (subject.status as SubjectFormRow["status"]) || (isSubjectFail(subject) ? "Fail" : "Pass"),
       }));
+    const overallPassMarks = Number(data.overallPassMarks);
+    const normalizedOverallPassMarks = Number.isFinite(overallPassMarks) ? String(overallPassMarks) : "";
     setForm({
       rollNo: initialResult.rollNo || "",
       studentName: initialResult.studentName || "",
@@ -657,12 +690,21 @@ function ManualResultDialog({
       academicYear: academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
       examName: initialResult.examName || (data.examName as string | undefined) || "English Medium Board",
       year: String(initialResult.year || new Date().getFullYear()),
+      overallPassMarks: normalizedOverallPassMarks,
+      overallPassPercentage: String(data.overallPassPercentage ?? 40),
     });
     setSubjects(subjectRows.length ? subjectRows : [createSubjectRow()]);
   }, [initialResult]);
 
   const updateSubject = (id: string, key: keyof SubjectFormRow, value: string) => {
-    setSubjects((prev) => prev.map((subject) => (subject.id === id ? { ...subject, [key]: value } : subject)));
+    setSubjects((prev) =>
+      prev.map((subject) => {
+        if (subject.id !== id) return subject;
+        const next = { ...subject, [key]: value } as SubjectFormRow;
+        next.status = deriveSubjectStatus(next);
+        return next;
+      }),
+    );
   };
 
   const handleAddSubject = () => {
@@ -680,17 +722,64 @@ function ManualResultDialog({
       .map((subject) => ({
         name: subject.name,
         maxMarks: Number(subject.maxMarks) || 100,
+        passMarks: Number(subject.passMarks),
         marksObtained: Number(subject.marksObtained) || 0,
         grade: subject.grade,
         status: subject.status,
       }));
 
     if (parsedSubjects.length === 0) {
-      alert("Add at least one subject.");
+      toast({ variant: "destructive", title: "Add at least one subject" });
       return;
     }
 
-    const summary = summariseSubjects(parsedSubjects);
+    const validatedSubjects: SubjectResult[] = [];
+    for (const subject of parsedSubjects) {
+      const passMarkValue =
+        Number.isFinite(subject.passMarks) && (subject.passMarks as number) > 0 ? (subject.passMarks as number) : undefined;
+      if (Number.isFinite(passMarkValue) && passMarkValue! > subject.maxMarks) {
+        toast({
+          variant: "destructive",
+          title: "Invalid pass mark",
+          description: `Pass marks for ${subject.name} cannot exceed max marks.`,
+        });
+        return;
+      }
+      const checkSubject: SubjectResult = {
+        ...subject,
+        passMarks: passMarkValue,
+        status: undefined,
+      };
+      const isFailing = isSubjectFail(checkSubject);
+      validatedSubjects.push({ ...checkSubject, status: isFailing ? "Fail" : "Pass" });
+    }
+
+    const overallPassMarks = Number(form.overallPassMarks);
+    const overallPassPercentage = Number(form.overallPassPercentage) || 40;
+    const totalMax = validatedSubjects.reduce((acc, subject) => acc + (subject.maxMarks || 0), 0);
+    const derivedPassMarksTotal = validatedSubjects.reduce(
+      (acc, subject) => acc + (Number.isFinite(subject.passMarks) ? (subject.passMarks as number) : 0),
+      0,
+    );
+    const effectiveOverallPassMarks =
+      Number.isFinite(overallPassMarks) && overallPassMarks > 0
+        ? overallPassMarks
+        : derivedPassMarksTotal > 0
+          ? derivedPassMarksTotal
+          : undefined;
+
+    if (Number.isFinite(effectiveOverallPassMarks) && effectiveOverallPassMarks > totalMax) {
+      toast({
+        variant: "destructive",
+        title: "Overall pass marks too high",
+        description: "Overall pass marks cannot exceed total max marks.",
+      });
+      return;
+    }
+    const summary = summariseSubjects(validatedSubjects, {
+      overallPassMarks: effectiveOverallPassMarks,
+      overallPassPercentage,
+    });
     const photoUrl = form.photoUrl.trim();
     const classLabel = getClassLabel(form.className);
     const slugValue = form.className || slugifyClass(classLabel);
@@ -716,6 +805,8 @@ function ManualResultDialog({
         academicYear: form.academicYear,
         subjects: summary.subjects,
         resultStatus: summary.overallStatus,
+        overallPassMarks: effectiveOverallPassMarks,
+        overallPassPercentage,
         photoUrl: photoUrl || undefined,
       },
       fallbackClass: classLabel,
@@ -737,7 +828,7 @@ function ManualResultDialog({
   };
 
   return (
-    <DialogContent className="max-w-3xl">
+    <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
       <DialogHeader>
         <DialogTitle>{title || "Add Result Manually"}</DialogTitle>
         <DialogDescription>Complete the student details and subjects to publish a result immediately.</DialogDescription>
@@ -786,6 +877,15 @@ function ManualResultDialog({
             <Field label="Exam Year" required>
               <Input required value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
             </Field>
+            <Field label="Overall Pass Marks">
+              <Input
+                type="number"
+                min="0"
+                value={form.overallPassMarks}
+                onChange={(e) => setForm({ ...form, overallPassMarks: e.target.value })}
+                placeholder="Leave blank to auto-calc from subject pass marks"
+              />
+            </Field>
           </div>
 
           <div className="space-y-3">
@@ -797,7 +897,7 @@ function ManualResultDialog({
             </div>
             <div className="space-y-3">
               {subjects.map((subject, index) => (
-                <div key={subject.id} className="grid grid-cols-1 md:grid-cols-5 gap-3 rounded-lg border p-3">
+                <div key={subject.id} className="grid grid-cols-1 md:grid-cols-6 gap-3 rounded-lg border p-3">
                   <Field label={`Subject ${index + 1}`} required>
                     <Input value={subject.name} onChange={(e) => updateSubject(subject.id, "name", e.target.value)} required />
                   </Field>
@@ -810,12 +910,31 @@ function ManualResultDialog({
                       required
                     />
                   </Field>
+                  <Field label="Pass Marks" required>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={subject.passMarks}
+                      onChange={(e) => updateSubject(subject.id, "passMarks", e.target.value)}
+                      onBlur={(e) => {
+                        if (e.target.value.trim() === "") {
+                          updateSubject(subject.id, "passMarks", "0");
+                        }
+                      }}
+                      required
+                    />
+                  </Field>
                   <Field label="Marks Obtained" required>
                     <Input
                       type="number"
                       min="0"
                       value={subject.marksObtained}
                       onChange={(e) => updateSubject(subject.id, "marksObtained", e.target.value)}
+                      onBlur={(e) => {
+                        if (e.target.value.trim() === "") {
+                          updateSubject(subject.id, "marksObtained", "0");
+                        }
+                      }}
                       required
                     />
                   </Field>
@@ -823,15 +942,15 @@ function ManualResultDialog({
                     <Input value={subject.grade} onChange={(e) => updateSubject(subject.id, "grade", e.target.value)} />
                   </Field>
                   <Field label="Status">
-                    <Select value={subject.status} onValueChange={(value) => updateSubject(subject.id, "status", value as SubjectFormRow["status"])}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Pass">Pass</SelectItem>
-                        <SelectItem value="Fail">Fail</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "border-none px-3 py-1 text-xs font-semibold w-fit",
+                        subject.status === "Pass" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700",
+                      )}
+                    >
+                      {subject.status}
+                    </Badge>
                   </Field>
                   {subjects.length > 1 && (
                     <Button
@@ -877,7 +996,7 @@ function ResultSummary({ data }: { data?: Record<string, any> }) {
   const subjects =
     (Array.isArray(record?.subjects) ? (record.subjects as SubjectResult[]) : undefined) ||
     inferSubjectsFromRecord(record);
-  const summary = summariseSubjects(subjects);
+  const summary = summariseSubjects(subjects, getSummaryOptions(record));
   const className = resolveClassDisplay(record);
   return (
     <div className="space-y-1 text-sm">
@@ -887,6 +1006,15 @@ function ResultSummary({ data }: { data?: Record<string, any> }) {
       </div>
     </div>
   );
+}
+
+function getSummaryOptions(record?: Record<string, any>) {
+  const overallPassMarks = Number(record?.overallPassMarks);
+  const overallPassPercentage = Number(record?.overallPassPercentage);
+  return {
+    overallPassMarks: Number.isFinite(overallPassMarks) && overallPassMarks > 0 ? overallPassMarks : undefined,
+    overallPassPercentage: Number.isFinite(overallPassPercentage) ? overallPassPercentage : undefined,
+  };
 }
 
 function StatusBadge({ status }: { status?: string | null }) {

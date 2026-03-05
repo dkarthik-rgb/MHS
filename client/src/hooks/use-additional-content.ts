@@ -195,7 +195,15 @@ export function useUpdateResult() {
         body: JSON.stringify(payload),
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to update result");
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to update result");
+      }
+      if (!contentType.includes("application/json")) {
+        const text = await res.text();
+        throw new Error(text || "Unexpected response from server");
+      }
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.results.list.path] }),

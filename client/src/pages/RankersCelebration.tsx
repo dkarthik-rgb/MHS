@@ -244,7 +244,7 @@ function decorateResultEntries(records: ResultRecord[]): CelebrationEntry[] {
       const subjectList = Array.isArray(normalized.subjects)
         ? (normalized.subjects as SubjectResult[])
         : inferSubjectsFromRecord(normalized);
-      const summary = summariseSubjects(subjectList);
+      const summary = summariseSubjects(subjectList, getSummaryOptions(normalized));
       const classLabel = normalized.className || normalized.class || normalized.grade || "Unknown Class";
       const classSlug = normalized.classSlug || slugifyClass(classLabel);
       const imageCandidate = PHOTO_KEYS.map((key) => normalized[key] as string | undefined).find(
@@ -269,6 +269,15 @@ function decorateResultEntries(records: ResultRecord[]): CelebrationEntry[] {
     })
     .filter((entry) => entry.placementScore > 0)
     .sort((a, b) => b.placementScore - a.placementScore);
+}
+
+function getSummaryOptions(record?: Record<string, any>) {
+  const overallPassMarks = Number(record?.overallPassMarks);
+  const overallPassPercentage = Number(record?.overallPassPercentage);
+  return {
+    overallPassMarks: Number.isFinite(overallPassMarks) && overallPassMarks > 0 ? overallPassMarks : undefined,
+    overallPassPercentage: Number.isFinite(overallPassPercentage) ? overallPassPercentage : undefined,
+  };
 }
 
 function resultEntryToRanker(entry: CelebrationEntry, placement: number): Ranker {

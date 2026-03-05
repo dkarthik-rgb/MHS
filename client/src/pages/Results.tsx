@@ -19,7 +19,7 @@ import {
   inferSubjectsFromRecord,
   slugifyClass,
 } from "@/lib/results";
-import { Search, GraduationCap, Loader2, Printer, Share2, UserRound } from "lucide-react";
+import { Search, GraduationCap, Loader2, Printer, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ResultRecord = {
@@ -118,11 +118,35 @@ export default function Results() {
   }, [activeSearch]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <Navigation />
+    <div className="min-h-screen flex flex-col bg-slate-50 print:bg-white">
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 8mm; }
+          .no-print { display: none !important; }
+          .print-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+          .print-avoid-break { break-inside: avoid; page-break-inside: avoid; }
+          .print-tight { padding: 12px !important; margin: 0 auto !important; }
+          .print-compact table th, .print-compact table td { padding-top: 4px !important; padding-bottom: 4px !important; }
+          .print-compact .text-3xl { font-size: 20px !important; }
+          .print-compact .text-lg { font-size: 13px !important; }
+          .print-compact .subject-table { font-size: 11px !important; }
+          .print-compact .subject-header { padding: 8px 10px !important; }
+          .print-compact .subject-content { padding: 10px !important; }
+          .print-compact .result-actions { margin-top: 0 !important; }
+          .print-center { margin-left: auto !important; margin-right: auto !important; }
+          .print-stats { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 6px !important; }
+          .print-stats .stat { padding: 6px !important; }
+          .print-stats .stat-label { font-size: 9px !important; }
+          .print-stats .stat-value { font-size: 12px !important; }
+          body { background: white !important; }
+        }
+      `}</style>
+      <div className="no-print">
+        <Navigation />
+      </div>
 
-      <main className="flex-1 container mx-auto px-4 py-16 space-y-8">
-        <div className="max-w-3xl mx-auto text-center">
+      <main className="flex-1 container mx-auto px-4 py-16 space-y-8 print:px-0 print:py-4 print:w-full print:max-w-none print:mx-auto">
+        <div className="max-w-3xl mx-auto text-center no-print">
           <GraduationCap className="w-16 h-16 mx-auto text-primary mb-4" />
           <h1 className="text-4xl font-bold mb-4">Montessori Results Portal</h1>
           <p className="text-muted-foreground text-lg">
@@ -130,7 +154,7 @@ export default function Results() {
           </p>
         </div>
 
-        <Card className="max-w-3xl mx-auto shadow-xl">
+        <Card className="max-w-3xl mx-auto shadow-xl print-card print-avoid-break no-print">
           <CardContent className="pt-8 space-y-4">
             <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-[1fr,1fr,auto] gap-4">
               <Input
@@ -162,7 +186,7 @@ export default function Results() {
         </Card>
 
         {activeSearch === null && (
-          <Card className="max-w-3xl mx-auto border-dashed">
+          <Card className="max-w-3xl mx-auto border-dashed no-print">
             <CardContent className="py-10 text-center text-muted-foreground">
               Enter your hall ticket and class to fetch the latest published record. All data is served live from the school database.
             </CardContent>
@@ -198,7 +222,7 @@ export default function Results() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
+                className="space-y-6 print:space-y-2 print-compact print-center"
               >
                 <ResultHeader
                   result={currentResult}
@@ -229,7 +253,9 @@ export default function Results() {
         )}
       </main>
 
-      <Footer />
+      <div className="no-print">
+        <Footer />
+      </div>
     </div>
   );
 }
@@ -250,24 +276,18 @@ function ResultHeader({
   const dob = data.dob ? new Date(data.dob).toLocaleDateString() : "—";
   const academicYear =
     data.academicYear || (typeof result.year === "number" ? `${result.year - 1}-${result.year}` : "—");
-  const avatarInitials = result.studentName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
   const badgeTone = summary.overallStatus === "Pass" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-700";
 
   const handlePrint = () => window.print();
   const handleExport = () => exportResultAsCsv(result, summary);
 
   return (
-    <Card className="border-none shadow-2xl overflow-hidden">
-      <div className="bg-gradient-to-r from-primary via-primary to-primary/80 text-primary-foreground p-6">
+    <Card className="border-none shadow-2xl overflow-hidden print-card print-avoid-break result-card print:w-full print:max-w-none">
+      <div className="bg-gradient-to-r from-primary via-primary to-primary/80 text-primary-foreground p-6 print-tight">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
-              {avatarInitials || <UserRound className="h-8 w-8" />}
+            <div className="h-16 w-16 rounded-full bg-white/95 ring-2 ring-white/50 shadow-sm flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="Montessori EM High School" className="h-12 w-12 object-contain" />
             </div>
             <div>
               <p className="text-sm uppercase tracking-widest opacity-90">{result.examName}</p>
@@ -282,8 +302,8 @@ function ResultHeader({
           </div>
         </div>
       </div>
-      <CardContent className="p-6 space-y-6">
-        <div className="flex flex-wrap gap-3">
+      <CardContent className="p-6 space-y-6 print-tight">
+        <div className="flex flex-wrap gap-3 no-print result-actions">
           <Button variant="outline" size="sm" onClick={onSearchAnother}>
             Search Another
           </Button>
@@ -295,7 +315,7 @@ function ResultHeader({
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print-avoid-break print-stats">
           <InfoStat label="Class / Section" value={`${className} - ${section}`} />
           <InfoStat label="Date of Birth" value={dob} />
           <InfoStat label="Academic Year" value={academicYear} />
@@ -311,13 +331,13 @@ function ResultHeader({
 function SubjectBreakdown({ subjects }: { subjects: SubjectResult[] }) {
   if (!subjects.length) return null;
   return (
-    <Card className="shadow-lg">
-      <CardHeader>
+    <Card className="shadow-lg print-card print-avoid-break subject-card print:w-full print:max-w-none">
+      <CardHeader className="subject-header">
         <CardTitle>Subject-wise Performance</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="subject-content">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm subject-table">
             <thead>
               <tr className="text-xs uppercase text-muted-foreground border-b">
                 <th className="py-2 pr-4">Subject</th>
@@ -365,12 +385,12 @@ function InfoStat({ label, value, accent }: { label: string; value?: string | nu
   return (
     <div
       className={cn(
-        "rounded-xl border p-4",
+        "rounded-xl border p-4 stat",
         accent ? "bg-primary/5 border-primary/20" : "bg-white border-border",
       )}
     >
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-foreground">{value ?? "—"}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground stat-label">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-foreground stat-value">{value ?? "—"}</p>
     </div>
   );
 }
@@ -384,7 +404,7 @@ function getResultSummary(result?: ResultRecord) {
   const subjects =
     (Array.isArray(normalized.subjects) ? (normalized.subjects as SubjectResult[]) : undefined) ||
     inferSubjectsFromRecord(normalized);
-  return summariseSubjects(subjects);
+  return summariseSubjects(subjects, getSummaryOptions(normalized));
 }
 
 function getNormalizedData(result?: ResultRecord) {
@@ -393,6 +413,15 @@ function getNormalizedData(result?: ResultRecord) {
     data: result.data as Record<string, any>,
     fallbackYear: result.year,
   });
+}
+
+function getSummaryOptions(record?: Record<string, any>) {
+  const overallPassMarks = Number(record?.overallPassMarks);
+  const overallPassPercentage = Number(record?.overallPassPercentage);
+  return {
+    overallPassMarks: Number.isFinite(overallPassMarks) && overallPassMarks > 0 ? overallPassMarks : undefined,
+    overallPassPercentage: Number.isFinite(overallPassPercentage) ? overallPassPercentage : undefined,
+  };
 }
 
 function exportResultAsCsv(result: ResultRecord, summary: ReturnType<typeof summariseSubjects>) {
@@ -430,3 +459,5 @@ function resolvePublicClass(data?: Record<string, any>) {
   }
   return "—";
 }
+
+
