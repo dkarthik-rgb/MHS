@@ -31,6 +31,8 @@ import { admissionStatusValues, eventStatusValues } from "@shared/schema";
 const MemoryStore = createMemoryStore(session);
 const SESSION_MAX_AGE_MS = Number(process.env.ADMIN_SESSION_MAX_AGE_MS ?? 60 * 60 * 1000);
 const SESSION_COOKIE_NAME = process.env.ADMIN_SESSION_COOKIE_NAME || "mems.admin.sid";
+const SESSION_COOKIE_SECURE: boolean | "auto" =
+  process.env.NODE_ENV === "production" ? "auto" : false;
 
 declare module "express-session" {
   interface SessionData {
@@ -387,7 +389,7 @@ export async function registerRoutes(
       cookie: {
         sameSite: "lax",
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: SESSION_COOKIE_SECURE,
       },
       store: new MemoryStore({
         checkPeriod: SESSION_MAX_AGE_MS,

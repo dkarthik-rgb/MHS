@@ -8,6 +8,10 @@ import type { ListenOptions } from "net";
 const app = express();
 const httpServer = createServer(app);
 
+// Honor X-Forwarded-* headers from Nginx / load balancers so secure session
+// cookies work correctly after TLS termination.
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
