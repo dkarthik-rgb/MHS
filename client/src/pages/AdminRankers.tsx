@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Ranker } from "@shared/schema";
 import { AdminLayout } from "@/components/AdminLayout";
 import {
@@ -16,6 +16,9 @@ import { Plus, Edit2, Trash2, Loader2, Trophy, Info, AlertTriangle, ImagePlus } 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import Cropper, { type Area } from "react-easy-crop";
+import { Slider } from "@/components/ui/slider";
+import { cropImageToFile } from "@/lib/crop-image";
 
 type RankerFormState = {
   studentName: string;
@@ -65,14 +68,42 @@ export default function AdminRankers() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingSource, setEditingSource] = useState<Ranker["source"] | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
+  const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const [formData, setFormData] = useState<RankerFormState>(emptyForm);
 
   const rowsWithWarnings = useMemo(() => rankers.filter((item) => getWarnings(item).length > 0), [rankers]);
+  const editingRanker = editingId ? rankers.find((item) => item.id === editingId) ?? null : null;
+
+  const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(photoPreview);
+      }
+    };
+  }, [photoPreview]);
 
   const openCreate = () => {
     setFormData(emptyForm);
     setEditingId(null);
     setSelectedPhoto(null);
+    if (photoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoPreview(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setIsCropping(false);
+    setIsApplyingCrop(false);
     setEditingSource(null);
     setIsOpen(true);
   };
@@ -92,15 +123,75 @@ export default function AdminRankers() {
     });
     setEditingId(record.id);
     setSelectedPhoto(null);
+    if (photoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoPreview(record.imageUrl || null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setIsCropping(false);
+    setIsApplyingCrop(false);
     setEditingSource(record.source);
     setIsOpen(true);
   };
 
   const closeDialog = () => {
     setIsOpen(false);
+    if (photoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoPreview(null);
     setSelectedPhoto(null);
     setEditingId(null);
     setEditingSource(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setIsCropping(false);
+    setIsApplyingCrop(false);
+  };
+
+  const handlePhotoChange = (fileList: FileList | null) => {
+    const file = fileList?.[0] ?? null;
+    if (!file) return;
+    if (photoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setSelectedPhoto(file);
+    setPhotoPreview(objectUrl);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setIsCropping(true);
+  };
+
+  const handleApplyCrop = async () => {
+    if (!photoPreview || !croppedAreaPixels) {
+      return;
+    }
+    try {
+      setIsApplyingCrop(true);
+      const croppedFile = await cropImageToFile(
+        photoPreview,
+        croppedAreaPixels,
+        selectedPhoto?.name ?? "ranker-photo.jpg",
+        selectedPhoto?.type ?? "image/jpeg",
+      );
+      const nextPreview = URL.createObjectURL(croppedFile);
+      if (photoPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(photoPreview);
+      }
+      setSelectedPhoto(croppedFile);
+      setPhotoPreview(nextPreview);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+      setIsCropping(false);
+    } finally {
+      setIsApplyingCrop(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -150,7 +241,7 @@ export default function AdminRankers() {
               <Plus className="w-4 h-4 mr-2" /> Add Ranker
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[520px]">
+          <DialogContent className="sm:max-w-[640px]">
             <DialogHeader>
               <DialogTitle>{editingId ? "Edit Ranker" : "Add Ranker"}</DialogTitle>
             </DialogHeader>
@@ -210,21 +301,90 @@ export default function AdminRankers() {
                 </div>
                 <div className="space-y-2 col-span-2">
                   <Label>Upload Photo</Label>
-                  <div className="flex items-center gap-3">
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0] ?? null;
-                        setSelectedPhoto(file);
-                      }}
-                    />
-                    {selectedPhoto && (
-                      <Badge variant="secondary" className="flex items-center gap-2">
-                        <ImagePlus className="h-3 w-3" />
-                        {selectedPhoto.name}
-                      </Badge>
-                    )}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => handlePhotoChange(event.target.files)}
+                      />
+                      {selectedPhoto && (
+                        <Badge variant="secondary" className="flex items-center gap-2">
+                          <ImagePlus className="h-3 w-3" />
+                          {selectedPhoto.name}
+                        </Badge>
+                      )}
+                    </div>
+                    {photoPreview ? (
+                      isCropping ? (
+                        <div className="space-y-3">
+                          <div className="relative aspect-[3/4] w-full max-w-sm overflow-hidden rounded-2xl bg-slate-200">
+                            <Cropper
+                              image={photoPreview}
+                              crop={crop}
+                              zoom={zoom}
+                              aspect={3 / 4}
+                              onCropChange={setCrop}
+                              onZoomChange={setZoom}
+                              onCropComplete={onCropComplete}
+                              showGrid={false}
+                            />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Zoom</span>
+                            <Slider
+                              value={[zoom]}
+                              onValueChange={(value) => setZoom(value[0] ?? 1)}
+                              min={1}
+                              max={3}
+                              step={0.1}
+                              className="flex-1"
+                            />
+                          </div>
+                          <div className="flex flex-wrap gap-3">
+                            <Button type="button" onClick={handleApplyCrop} disabled={isApplyingCrop || !croppedAreaPixels}>
+                              {isApplyingCrop ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply Crop"}
+                            </Button>
+                            <Button type="button" variant="outline" onClick={() => setIsCropping(false)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                          <img
+                            src={photoPreview}
+                            alt={formData.studentName || "Ranker preview"}
+                            className="h-44 w-36 rounded-2xl border object-cover shadow-sm"
+                          />
+                          {selectedPhoto && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setCrop({ x: 0, y: 0 });
+                                setZoom(1);
+                                setCroppedAreaPixels(null);
+                                setIsCropping(true);
+                              }}
+                            >
+                              Adjust Crop
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    ) : editingRanker?.imageUrl ? (
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={editingRanker.imageUrl}
+                          alt={editingRanker.studentName}
+                          className="h-44 w-36 rounded-2xl border object-cover shadow-sm"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Current photo will be retained if no new image is uploaded.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                   {editingSource === "auto" && (
                     <p className="text-xs text-muted-foreground">
