@@ -106,6 +106,72 @@ function buildAssetUrl(relativePath: string, baseUrl?: string | null): string {
   return `${normalizedBase}${normalizedPath}`;
 }
 
+function buildServedAssetPath(filePath: string): string {
+  return `/api/assets?path=${encodeURIComponent(filePath)}`;
+}
+
+function resolveAssetResponseUrl(req: Request, filePath?: string | null, fallbackUrl?: string | null): string | null {
+  if (filePath) {
+    return buildServedAssetPath(filePath);
+  }
+  if (typeof fallbackUrl === "string" && fallbackUrl.startsWith("/uploads/")) {
+    return buildAssetUrl(fallbackUrl, getAssetBaseUrl(req));
+  }
+  return fallbackUrl ?? null;
+}
+
+function normalizeFacultyResponse(req: Request, item: any) {
+  return {
+    ...item,
+    imageUrl: resolveAssetResponseUrl(req, item.imagePath, item.imageUrl),
+  };
+}
+
+function normalizeGlobalImageResponse(req: Request, item: any) {
+  return {
+    ...item,
+    imageUrl: resolveAssetResponseUrl(req, item.imagePath, item.imageUrl),
+  };
+}
+
+function normalizeRankerResponse(req: Request, item: any) {
+  return {
+    ...item,
+    imageUrl: resolveAssetResponseUrl(req, item.imagePath, item.imageUrl),
+  };
+}
+
+function normalizeStudentLifeResponse(req: Request, item: any) {
+  return {
+    ...item,
+    images: Array.isArray(item.images)
+      ? item.images.map((image: any) => ({
+          ...image,
+          imageUrl: resolveAssetResponseUrl(req, image.filePath, image.imageUrl),
+        }))
+      : [],
+  };
+}
+
+function normalizeEventResponse(req: Request, item: any) {
+  return {
+    ...item,
+    images: Array.isArray(item.images)
+      ? item.images.map((image: any) => ({
+          ...image,
+          imageUrl: resolveAssetResponseUrl(req, image.filePath, image.imageUrl),
+        }))
+      : [],
+  };
+}
+
+function normalizeHeadmasterResponse(req: Request, item: any) {
+  return {
+    ...item,
+    imageUrl: resolveAssetResponseUrl(req, item.imagePath, item.imageUrl),
+  };
+}
+
 function toPublicUser(user: { id: number; email: string; role: string | null }, expiresAt?: number | null) {
   return {
     id: user.id,
@@ -543,7 +609,7 @@ export async function registerRoutes(
   app.get(api.faculty.list.path, async (req, res) => {
     const status = req.query.status as string | undefined;
     const items = await storage.getFaculty(status);
-    res.json(items);
+    res.json(items.map((item) => normalizeFacultyResponse(req, item)));
   });
   app.post(
     api.faculty.create.path,
@@ -592,7 +658,7 @@ export async function registerRoutes(
           imagePath: sourceType === "upload" ? uploadedImage?.filePath ?? null : null,
         };
         const item = await storage.createFaculty(data);
-        res.status(201).json(item);
+        res.status(201).json(normalizeFacultyResponse(req, item));
       } catch (err) {
         cleanupUploadedFiles(req.file);
         handleZodError(res, err);
@@ -663,7 +729,7 @@ export async function registerRoutes(
         updates.imagePath = nextImagePath;
 
         const item = await storage.updateFaculty(id, updates);
-        res.json(item);
+        res.json(normalizeFacultyResponse(req, item));
       } catch (err) {
         cleanupUploadedFiles(req.file);
         handleZodError(res, err);
@@ -697,7 +763,7 @@ export async function registerRoutes(
         return allowedStatus && isFuture;
       });
     }
-    res.json(items);
+    res.json(items.map((item) => normalizeEventResponse(req, item)));
   });
   app.post(
     api.events.create.path,
@@ -735,7 +801,7 @@ export async function registerRoutes(
           await storage.addEventImages(created.id, [...uploadImages, ...remoteImages]);
         }
         const hydrated = await storage.getEvent(created.id);
-        res.status(201).json(hydrated);
+        res.status(201).json(normalizeEventResponse(req, hydrated));
       } catch (err) {
         cleanupUploadedFiles(files);
         handleZodError(res, err);
@@ -794,7 +860,7 @@ export async function registerRoutes(
           await storage.addEventImages(id, [...uploadImages, ...remoteImages]);
         }
         const updated = await storage.getEvent(id);
-        res.json(updated);
+        res.json(normalizeEventResponse(req, updated));
       } catch (err) {
         cleanupUploadedFiles(files);
         handleZodError(res, err);
@@ -842,7 +908,7 @@ export async function registerRoutes(
   app.get(api.globalImages.list.path, async (req, res) => {
     const status = req.query.status as string | undefined;
     const items = await storage.getGlobalImages(status);
-    res.json(items);
+    res.json(items.map((item) => normalizeGlobalImageResponse(req, item)));
   });
   app.post(api.globalImages.create.path, requireAuth, globalImageUpload.array("images", 10), async (req, res) => {
     const files = normalizeFiles(req.files);
@@ -870,7 +936,7 @@ export async function registerRoutes(
             });
           }),
         );
-        return res.status(201).json(created);
+        return res.status(201).json(created.map((item) => normalizeGlobalImageResponse(req, item)));
       }
 
       if (!input.imageUrl) {
@@ -884,7 +950,7 @@ export async function registerRoutes(
         label: input.label ?? null,
         orderIndex: input.orderIndex,
       });
-      return res.status(201).json([item]);
+      return res.status(201).json([normalizeGlobalImageResponse(req, item)]);
     } catch (err) {
       cleanupUploadedFiles(req.files);
       handleZodError(res, err);
@@ -938,7 +1004,7 @@ export async function registerRoutes(
         status: input.status ?? existing.status,
         orderIndex: Number.isFinite(input.orderIndex as number) ? input.orderIndex : existing.orderIndex,
       });
-      res.json(updated);
+      res.json(normalizeGlobalImageResponse(req, updated));
     } catch (err) {
       if (fileToCleanup) cleanupUploadedFiles(fileToCleanup);
       handleZodError(res, err);
@@ -961,7 +1027,7 @@ export async function registerRoutes(
   app.get(api.rankers.list.path, async (req, res) => {
     const status = req.query.status as string | undefined;
     const items = await storage.getRankers(status);
-    res.json(items);
+    res.json(items.map((item) => normalizeRankerResponse(req, item)));
   });
   app.post(api.rankers.create.path, requireAuth, async (req, res) => {
     try {
@@ -997,7 +1063,7 @@ export async function registerRoutes(
       if (existing.source === "auto") {
         await storage.syncRankersFromResults().catch((err) => console.error("Failed to refresh rankers", err));
       }
-      res.json(item);
+      res.json(normalizeRankerResponse(req, item));
     } catch (err) { handleZodError(res, err); }
   });
   app.post("/api/rankers/:id/photo", requireAuth, rankerImageUpload.single("photo"), async (req, res) => {
@@ -1030,7 +1096,7 @@ export async function registerRoutes(
       if (ranker.imagePath && ranker.imagePath !== persisted.filePath) {
         deleteFileSafe(ranker.imagePath);
       }
-      res.json(updated);
+      res.json(normalizeRankerResponse(req, updated));
     } catch (err) {
       cleanupUploadedFiles(fileToCleanup);
       handleZodError(res, err);
@@ -1189,7 +1255,7 @@ export async function registerRoutes(
   app.get(api.studentLife.list.path, async (req, res) => {
     const status = req.query.status as string | undefined;
     const items = await storage.getStudentLife(status);
-    res.json(items);
+    res.json(items.map((item) => normalizeStudentLifeResponse(req, item)));
   });
   app.post(
     api.studentLife.create.path,
@@ -1229,7 +1295,7 @@ export async function registerRoutes(
           await storage.addStudentLifeImages(entry.id, uploadImages);
         }
         const hydrated = await storage.getStudentLifeById(entry.id);
-        res.status(201).json(hydrated);
+        res.status(201).json(normalizeStudentLifeResponse(req, hydrated));
       } catch (err) {
         cleanupUploadedFiles(req.files);
         handleZodError(res, err);
@@ -1300,7 +1366,7 @@ export async function registerRoutes(
         }
 
         const hydrated = await storage.getStudentLifeById(id);
-        res.json(hydrated);
+        res.json(normalizeStudentLifeResponse(req, hydrated));
       } catch (err) {
         cleanupUploadedFiles(req.files);
         handleZodError(res, err);
@@ -1322,7 +1388,7 @@ export async function registerRoutes(
   app.get(api.headmaster.list.path, async (req, res) => {
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
     const messages = await storage.getHeadmasterMessages(status);
-    res.json(messages);
+    res.json(messages.map((item) => normalizeHeadmasterResponse(req, item)));
   });
   app.post(
     api.headmaster.create.path,
@@ -1367,7 +1433,7 @@ export async function registerRoutes(
               : input.imageUrl?.trim() || null,
           imagePath: sourceType === "upload" ? uploadedImage?.filePath ?? null : null,
         } as InsertHeadmasterMessage);
-        res.status(201).json(record);
+        res.status(201).json(normalizeHeadmasterResponse(req, record));
       } catch (err) {
         cleanupUploadedFiles(req.file);
         handleZodError(res, err);
@@ -1431,7 +1497,7 @@ export async function registerRoutes(
         updates.imageUrl = nextImageUrl;
         updates.imagePath = nextImagePath;
         const updated = await storage.updateHeadmasterMessage(id, updates);
-        res.json(updated);
+        res.json(normalizeHeadmasterResponse(req, updated));
       } catch (err) {
         cleanupUploadedFiles(req.file);
         handleZodError(res, err);
