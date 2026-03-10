@@ -41,6 +41,6 @@ jobs:
             set -e
             cd ~/MHS
             git pull origin main
-            npm ci
+            npm ci --include=dev
             npm run build
             pm2 reload mhs-app --update-env
