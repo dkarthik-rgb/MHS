@@ -34,6 +34,8 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { cropImageToFile } from "@/lib/crop-image";
 
+const FACULTY_PHOTO_ASPECT = 9 / 16;
+
 const displayValue = (value?: string | number | null) => {
   if (value === null || value === undefined) return "-";
   if (typeof value === "number") return value.toString();
@@ -426,7 +428,7 @@ export default function AdminFaculty() {
                     <div className="border border-dashed rounded-xl p-6 text-center">
                       <UploadCloud className="h-8 w-8 mx-auto text-primary mb-2" />
                       <p className="text-sm text-muted-foreground mb-2">
-                        Upload a square image (minimum 400x400). PNG or JPEG preferred.
+                        Upload a portrait image. Crop it to the public faculty card frame before saving.
                       </p>
                       <Input type="file" accept="image/*" onChange={(e) => handleFileChange(e.target.files)} />
                     </div>
@@ -438,12 +440,12 @@ export default function AdminFaculty() {
                     <Label>{isCropping ? "Adjust Crop" : "Preview"}</Label>
                     {isCropping ? (
                       <>
-                        <div className="relative aspect-square w-full max-w-md overflow-hidden rounded-2xl bg-slate-200">
+                        <div className="relative aspect-[9/16] w-full max-w-xs overflow-hidden rounded-2xl bg-slate-200">
                           <Cropper
                             image={preview}
                             crop={crop}
                             zoom={zoom}
-                            aspect={1}
+                            aspect={FACULTY_PHOTO_ASPECT}
                             onCropChange={setCrop}
                             onZoomChange={setZoom}
                             onCropComplete={onCropComplete}
@@ -471,8 +473,10 @@ export default function AdminFaculty() {
                         </div>
                       </>
                     ) : (
-                      <>
-                        <img src={preview} alt="Preview" className="h-40 w-40 rounded-full object-cover border shadow" />
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <div className="relative h-52 w-32 overflow-hidden rounded-2xl bg-slate-100 border shadow">
+                          <img src={preview} alt="Preview" className="h-full w-full object-contain object-center" />
+                        </div>
                         <Button
                           type="button"
                           variant="outline"
@@ -486,13 +490,15 @@ export default function AdminFaculty() {
                         >
                           Adjust Crop
                         </Button>
-                      </>
+                      </div>
                     )}
                   </div>
                 ) : preview ? (
                   <div className="space-y-2">
                     <Label>Preview</Label>
-                    <img src={preview} alt="Preview" className="h-40 w-40 rounded-full object-cover border" />
+                    <div className="relative h-52 w-32 overflow-hidden rounded-2xl bg-slate-100 border shadow">
+                      <img src={preview} alt="Preview" className="h-full w-full object-contain object-center" />
+                    </div>
                   </div>
                 ) : null}
 

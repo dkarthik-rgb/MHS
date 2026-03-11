@@ -41,49 +41,63 @@ export default function Faculty() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
               {profiles.map((profile) => (
-                <Card key={profile.id} className="overflow-hidden shadow-md border-0">
-                  <div className="w-full aspect-[9/16] bg-slate-100">
+                <Card key={profile.id} className="mx-auto w-full max-w-sm overflow-hidden border-0 shadow-md">
+                  <div className="relative mx-auto h-[360px] w-full overflow-hidden bg-slate-100 sm:h-[400px]">
                     {profile.imageUrl ? (
-                      <img src={profile.imageUrl} alt={profile.name} className="w-full h-full object-cover object-top" />
+                      <>
+                        <img
+                          src={profile.imageUrl}
+                          alt=""
+                          aria-hidden="true"
+                          className="absolute inset-0 h-full w-full scale-105 object-cover object-center opacity-20 blur-sm"
+                        />
+                        <img
+                          src={profile.imageUrl}
+                          alt={profile.name}
+                          className="relative z-10 h-full w-full object-contain object-center"
+                        />
+                      </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                         Image coming soon
                       </div>
                     )}
                   </div>
-                  <CardHeader className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary">{profile.department}</Badge>
+                  <CardHeader className="space-y-2 p-5">
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <Badge variant="secondary" className="max-w-[65%] truncate">
+                        {profile.department}
+                      </Badge>
                       {profile.experience && (
-                        <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                        <span className="max-w-[35%] truncate text-right text-xs uppercase tracking-wide text-muted-foreground">
                           {profile.experience}
                         </span>
                       )}
                     </div>
-                    <CardTitle className="text-2xl">{profile.name}</CardTitle>
-                    <p className="text-sm text-primary font-semibold">{profile.role}</p>
+                    <CardTitle className="break-words text-xl leading-tight sm:text-2xl">{profile.name}</CardTitle>
+                    <p className="break-words text-sm font-semibold text-primary">{profile.role}</p>
                   </CardHeader>
-                  <CardContent className="space-y-3 text-sm text-slate-600">
+                  <CardContent className="space-y-3 p-5 pt-0 text-sm text-slate-600">
                     {profile.qualification && (
-                      <p>
+                      <p className="break-words">
                         <span className="font-semibold">Qualification: </span>
                         {profile.qualification}
                       </p>
                     )}
-                    {profile.description && <p className="leading-relaxed">{profile.description}</p>}
+                    {profile.description && <p className="break-words leading-relaxed">{profile.description}</p>}
                     <div className="pt-3 space-y-2 text-sm">
                       {profile.email && (
-                        <a href={`mailto:${profile.email}`} className="flex items-center gap-2 text-primary hover:underline">
-                          <Mail className="h-4 w-4" />
-                          {profile.email}
+                        <a href={`mailto:${profile.email}`} className="flex min-w-0 items-start gap-2 text-primary hover:underline">
+                          <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span className="break-all">{profile.email}</span>
                         </a>
                       )}
                       {profile.phone && (
-                        <a href={`tel:${profile.phone}`} className="flex items-center gap-2 text-primary hover:underline">
-                          <Phone className="h-4 w-4" />
-                          {profile.phone}
+                        <a href={`tel:${profile.phone}`} className="flex min-w-0 items-start gap-2 text-primary hover:underline">
+                          <Phone className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span className="break-all">{profile.phone}</span>
                         </a>
                       )}
                     </div>
